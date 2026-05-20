@@ -8,7 +8,7 @@ Subcommands:
 
 Output discipline (per task spec):
   * Status / log lines go to stderr so they don't pollute pipelines.
-  * Subcommand results go to stdout (so `deepmail query "..." | grep` works).
+  * Subcommand results go to stdout (so `deep-email query "..." | grep` works).
   * `-v / --verbose` enables per-iteration logs in `run`.
 """
 
@@ -52,13 +52,13 @@ def _load_creds_or_die() -> "Credentials":  # noqa: F821 - forward-string
     store = TokenStore()
     creds = store.load()
     if creds is None:
-        _echo_err("Not authenticated -- run 'deepmail auth' (or 'deepmail setup').")
+        _echo_err("Not authenticated -- run 'deep-email auth' (or 'deep-email setup').")
         sys.exit(2)
     try:
         refresh_if_needed(creds)
     except Exception as exc:
         _echo_err(
-            f"Token refresh failed ({exc}). Re-run 'deepmail auth' to re-consent."
+            f"Token refresh failed ({exc}). Re-run 'deep-email auth' to re-consent."
         )
         sys.exit(2)
     # Persist any refreshed access token so subsequent commands reuse it.
@@ -191,7 +191,7 @@ def auth(ctx: click.Context, force: bool, refresh_auth: bool) -> None:
         sys.exit(2)
 
     _echo_err(f"Token saved to {store.path}")
-    _echo_err("Done -- you can now use 'deepmail query' or 'deepmail run'.")
+    _echo_err("Done -- you can now use 'deep-email query' or 'deep-email run'.")
 
 
 # ---------------- whoami ----------------
@@ -207,7 +207,7 @@ def auth(ctx: click.Context, force: bool, refresh_auth: bool) -> None:
 def whoami(ctx: click.Context) -> None:
     """Confirm auth works end-to-end against Gmail."""
     creds = _load_creds_or_die()
-    # Import here so `deepmail --help` doesn't pay the googleapiclient cost.
+    # Import here so `deep-email --help` doesn't pay the googleapiclient cost.
     from googleapiclient.discovery import build
 
     service = build("gmail", "v1", credentials=creds, cache_discovery=False)
@@ -243,7 +243,7 @@ def contacts(ctx: click.Context, show_emails: bool) -> None:
     if not credentials_have_contacts_scope(creds):
         _echo_err(
             "Token is missing the contacts.readonly scope. "
-            "Run 'deepmail auth --refresh-auth' to re-consent."
+            "Run 'deep-email auth --refresh-auth' to re-consent."
         )
         sys.exit(2)
 
@@ -331,7 +331,7 @@ def calendar(ctx: click.Context, days_back: int, show_emails: bool) -> None:
     if not credentials_have_calendar_scope(creds):
         _echo_err(
             "Token is missing the calendar.readonly scope. "
-            "Run 'deepmail auth --refresh-auth' to re-consent."
+            "Run 'deep-email auth --refresh-auth' to re-consent."
         )
         sys.exit(2)
 
@@ -707,7 +707,7 @@ def _run_loop_gmail(
     else:
         _echo_err(
             "calendar: token missing calendar.readonly scope — skipping "
-            "Calendar API integration. Run 'deepmail auth --refresh-auth' "
+            "Calendar API integration. Run 'deep-email auth --refresh-auth' "
             "to enable calendar-evidence in the materializer."
         )
 
@@ -742,7 +742,7 @@ def _run_loop_gmail(
     else:
         _echo_err(
             "contacts: token missing contacts.readonly scope — skipping "
-            "People API integration. Run 'deepmail auth --refresh-auth' to "
+            "People API integration. Run 'deep-email auth --refresh-auth' to "
             "enable contact-evidence in the materializer."
         )
 

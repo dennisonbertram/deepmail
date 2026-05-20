@@ -1,6 +1,6 @@
-## Deepmail MCP Context
+## Deep Email MCP Context
 
-This project has a Deepmail MCP server that gives you deep understanding of the user's email contacts, family, and relationships.
+This project has a Deep Email MCP server that gives you deep understanding of the user's email contacts, family, and relationships.
 
 ### Available tools
 - `check_auth` -- verify Gmail authentication status

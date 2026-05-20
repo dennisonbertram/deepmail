@@ -1,10 +1,10 @@
-# Deepmail
+# Deep Email
 
 An MCP server that gives AI agents deep understanding of your email -- contacts, relationships, family, company, investments, and more.
 
 ## What it does
 
-Deepmail scans your Gmail (read-only) and builds persistent profiles of the people in your life. Once configured, any MCP-compatible AI agent (Claude Code, Claude Desktop, Cursor, etc.) can look up people, understand your relationships, and use your email history as context.
+Deep Email scans your Gmail (read-only) and builds persistent profiles of the people in your life. Once configured, any MCP-compatible AI agent (Claude Code, Claude Desktop, Cursor, etc.) can look up people, understand your relationships, and use your email history as context.
 
 ### Available tools
 
@@ -26,13 +26,13 @@ Deepmail scans your Gmail (read-only) and builds persistent profiles of the peop
 ### 1. Install
 
 ```bash
-pip install deepmail
+pip install deep-email
 ```
 
 Or run directly without installing:
 
 ```bash
-uvx deepmail
+uvx deep-email
 ```
 
 ### 2. Set up Google Cloud credentials
@@ -42,14 +42,14 @@ You need a Google Cloud project with the Gmail API enabled. See [Google Cloud Se
 ### 3. Authenticate with Gmail
 
 ```bash
-deepmail auth
+deep-email auth
 ```
 
 This opens a browser for Google OAuth. The token is stored locally and never leaves your machine.
 
 ### 4. Configure your AI agent
 
-Run `deepmail init` to write a `.mcp.json` in your project, or add manually:
+Run `deep-email init` to write a `.mcp.json` in your project, or add manually:
 
 ```json
 {
@@ -57,13 +57,13 @@ Run `deepmail init` to write a `.mcp.json` in your project, or add manually:
     "deepmail": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["deepmail"]
+      "args": ["deep-email"]
     }
   }
 }
 ```
 
-Or run `deepmail setup` for a full interactive walkthrough that handles credentials, auth, and agent config.
+Or run `deep-email setup` for a full interactive walkthrough that handles credentials, auth, and agent config.
 
 ### 5. Use it
 
@@ -76,7 +76,7 @@ Once configured, your AI agent will automatically:
 
 ## Google Cloud Setup
 
-Deepmail uses the Gmail API with OAuth 2.0. You need to create a Google Cloud project and obtain OAuth credentials. This is a one-time setup that takes about 5 minutes.
+Deep Email uses the Gmail API with OAuth 2.0. You need to create a Google Cloud project and obtain OAuth credentials. This is a one-time setup that takes about 5 minutes.
 
 ### Step 1: Create a Google Cloud project
 
@@ -115,7 +115,7 @@ Deepmail uses the Gmail API with OAuth 2.0. You need to create a Google Cloud pr
 4. Enter a name (e.g., "deepmail desktop") and click **Create**
 5. You will see a dialog with your **Client ID** and **Client Secret** -- copy the Client ID
 
-### Step 5: Configure Deepmail
+### Step 5: Configure Deep Email
 
 Set your Client ID as an environment variable:
 
@@ -132,21 +132,21 @@ GOOGLE_CLIENT_ID=your-client-id-here.apps.googleusercontent.com
 Then run authentication:
 
 ```bash
-deepmail auth
+deep-email auth
 ```
 
 Or use the interactive setup wizard which handles everything:
 
 ```bash
-deepmail setup
+deep-email setup
 ```
 
 ### Important notes about Google OAuth in testing mode
 
 - **Testing mode**: Your app starts in "Testing" mode on Google Cloud. This is fine for personal use.
-- **Token expiry**: In testing mode, OAuth tokens expire every **7 days**. When they expire, re-run `deepmail auth` to re-authenticate.
+- **Token expiry**: In testing mode, OAuth tokens expire every **7 days**. When they expire, re-run `deep-email auth` to re-authenticate.
 - **Publishing**: If you want tokens that don't expire weekly, you can submit your app for verification on the OAuth consent screen. This is optional for personal use.
-- **Permissions**: Deepmail only requests `gmail.readonly` -- it cannot send, modify, or delete any emails.
+- **Permissions**: Deep Email only requests `gmail.readonly` -- it cannot send, modify, or delete any emails.
 
 ## MCP configuration
 
@@ -158,13 +158,13 @@ deepmail setup
     "deepmail": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["deepmail"]
+      "args": ["deep-email"]
     }
   }
 }
 ```
 
-Or just run `deepmail init` to write this automatically.
+Or just run `deep-email init` to write this automatically.
 
 ### Local development (from a clone of this repo)
 
@@ -178,7 +178,7 @@ Or just run `deepmail init` to write this automatically.
         "run",
         "--directory",
         "/path/to/pi-email-deep-context-library",
-        "deepmail"
+        "deep-email"
       ]
     }
   }
@@ -193,7 +193,7 @@ Replace `/path/to/pi-email-deep-context-library` with the actual path on your ma
 npx skills add dennison/pi-email-deep-context-library
 ```
 
-This installs the `deepmail` skill, which teaches agents the investigation methodology for using the MCP tools. You still need the MCP server configured (see above).
+This installs the `deep-email` skill, which teaches agents the investigation methodology for using the MCP tools. You still need the MCP server configured (see above).
 
 ## How it works
 
@@ -208,9 +208,9 @@ All processing happens locally. Profiles are cached so subsequent lookups are in
 
 ## Security
 
-- **Read-only**: Deepmail only requests `gmail.readonly` permission. It cannot send, modify, or delete emails.
+- **Read-only**: Deep Email only requests `gmail.readonly` permission. It cannot send, modify, or delete emails.
 - **Local-first**: All data (profiles, embeddings, OAuth tokens) stays on your machine. Nothing is uploaded to any server.
-- **No telemetry**: Deepmail does not phone home, track usage, or collect any analytics.
+- **No telemetry**: Deep Email does not phone home, track usage, or collect any analytics.
 - **LLM calls**: If `ANTHROPIC_API_KEY` is set, the build pipeline uses Claude to judge candidate relationships. This is optional -- without it, the calling agent (Claude Code, Cursor, etc.) reviews candidates instead.
 
 ## License

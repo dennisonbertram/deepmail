@@ -123,7 +123,7 @@ class TestCheckAuth:
             MockStore.return_value.load.return_value = None
             result = check_auth()
             assert "Not authenticated" in result
-            assert "deepmail auth" in result
+            assert "deep-email auth" in result
 
     def test_valid_tokens(self):
         """TokenStore returns valid creds -> 'Authenticated as <email>'."""
@@ -149,7 +149,7 @@ class TestCheckAuth:
             MockStore.return_value.load.return_value = creds
             result = check_auth()
             assert "expired" in result.lower() or "could not be refreshed" in result.lower()
-            assert "deepmail auth" in result
+            assert "deep-email auth" in result
 
 
 # ====================================================================
@@ -254,7 +254,7 @@ class TestBuildProfile:
             MockStore.return_value.load.return_value = None
             result = build_profile("figure out my family")
             assert "Not authenticated" in result
-            assert "deepmail auth" in result
+            assert "deep-email auth" in result
 
     def test_expired_auth(self):
         """Expired tokens that can't refresh -> returns auth instructions."""
@@ -1155,7 +1155,7 @@ class TestSearchEmails:
             MockStore.return_value.load.return_value = None
             result = search_emails("test query")
             assert "Not authenticated" in result
-            assert "deepmail auth" in result
+            assert "deep-email auth" in result
 
     def test_search_emails_empty_results(self):
         """Query returns 0 hits -> 'No results found'."""
@@ -1240,7 +1240,7 @@ class TestReadEmail:
             MockStore.return_value.load.return_value = None
             result = read_email("some_id")
             assert "Not authenticated" in result
-            assert "deepmail auth" in result
+            assert "deep-email auth" in result
 
     def test_read_email_truncates_long_body(self):
         """Body > 10000 chars -> truncated with note."""

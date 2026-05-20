@@ -1,15 +1,15 @@
-"""Unified CLI entry point for Deepmail.
+"""Unified CLI entry point for Deep Email.
 
 Dispatches subcommands:
-  deepmail              → starts MCP server (stdio transport)
-  deepmail serve        → starts MCP server (explicit)
-  deepmail auth         → OAuth flow
-  deepmail whoami       → check auth status
-  deepmail query QUERY  → search Gmail
-  deepmail run SEED     → run the build pipeline
-  deepmail init         → write .mcp.json
-  deepmail setup        → interactive wizard
-  deepmail --help       → shows all commands
+  deep-email              → starts MCP server (stdio transport)
+  deep-email serve        → starts MCP server (explicit)
+  deep-email auth         → OAuth flow
+  deep-email whoami       → check auth status
+  deep-email query QUERY  → search Gmail
+  deep-email run SEED     → run the build pipeline
+  deep-email init         → write .mcp.json
+  deep-email setup        → interactive wizard
+  deep-email --help       → shows all commands
 """
 
 from __future__ import annotations
@@ -39,12 +39,12 @@ def _load_dotenv_quietly() -> None:
 @click.group(
     invoke_without_command=True,
     help=(
-        "Deepmail: deep email understanding for AI agents.\n\n"
+        "Deep Email: deep email understanding for AI agents.\n\n"
         "Run with no subcommand to start the MCP server (stdio transport).\n"
-        "Use 'deepmail setup' for first-time configuration."
+        "Use 'deep-email setup' for first-time configuration."
     ),
 )
-@click.version_option("0.1.0", prog_name="deepmail")
+@click.version_option("0.1.0", prog_name="deep-email")
 @click.option(
     "-v",
     "--verbose",
@@ -236,11 +236,11 @@ def run(ctx: click.Context, seed: str, **kwargs) -> None:
 
 
 def _write_mcp_json(mcp_json_path: Path) -> None:
-    """Write or merge the deepmail entry into .mcp.json."""
+    """Write or merge the deep-email entry into .mcp.json."""
     deepmail_config = {
         "type": "stdio",
         "command": "uvx",
-        "args": ["deepmail"],
+        "args": ["deep-email"],
     }
 
     if mcp_json_path.exists():
@@ -257,10 +257,10 @@ def _write_mcp_json(mcp_json_path: Path) -> None:
 
 @cli.command()
 def init() -> None:
-    """Configure Deepmail MCP server in the current project.
+    """Configure Deep Email MCP server in the current project.
 
     Writes a .mcp.json file (or merges into an existing one) so your
-    AI agent can discover the Deepmail MCP server.
+    AI agent can discover the Deep Email MCP server.
     """
     mcp_json_path = Path.cwd() / ".mcp.json"
 
@@ -270,12 +270,12 @@ def init() -> None:
         except (json.JSONDecodeError, OSError):
             existing = {}
         if "deepmail" in existing.get("mcpServers", {}):
-            click.echo("Deepmail is already configured in .mcp.json")
+            click.echo("Deep Email is already configured in .mcp.json")
             return
 
     _write_mcp_json(mcp_json_path)
     click.echo(f"Wrote {mcp_json_path}")
-    click.echo("  Restart your agent to activate Deepmail.")
+    click.echo("  Restart your agent to activate Deep Email.")
 
 
 # ---- setup ----
@@ -284,7 +284,7 @@ def init() -> None:
 @cli.command()
 def setup() -> None:
     """Interactive setup wizard -- credentials, auth, and agent config."""
-    click.echo("Welcome to Deepmail!\n")
+    click.echo("Welcome to Deep Email!\n")
 
     # Step 1: Check GOOGLE_CLIENT_ID
     click.echo("Step 1: Google Cloud credentials")
@@ -294,7 +294,7 @@ def setup() -> None:
     else:
         click.echo("  [!!] GOOGLE_CLIENT_ID not set")
         click.echo("  You need a Google Cloud OAuth client ID.")
-        click.echo("  See: https://github.com/user/deepmail#google-cloud-setup")
+        click.echo("  See: https://github.com/user/deep-email#google-cloud-setup")
         click.echo("")
         client_id = click.prompt(
             "  Paste your Client ID (or press Enter to skip)",
@@ -309,7 +309,7 @@ def setup() -> None:
             os.environ["GOOGLE_CLIENT_ID"] = client_id  # set for this session
         else:
             click.echo(
-                "  Skipping -- set GOOGLE_CLIENT_ID before running 'deepmail auth'"
+                "  Skipping -- set GOOGLE_CLIENT_ID before running 'deep-email auth'"
             )
             return
 
@@ -331,9 +331,9 @@ def setup() -> None:
                 click.echo("  [ok] Authenticated")
             except Exception as exc:
                 click.echo(f"  [!!] Authentication failed: {exc}")
-                click.echo("  Run 'deepmail auth' later to retry.")
+                click.echo("  Run 'deep-email auth' later to retry.")
         else:
-            click.echo("  Skipping -- run 'deepmail auth' later")
+            click.echo("  Skipping -- run 'deep-email auth' later")
 
     # Step 3: Agent config
     click.echo("\nStep 3: Agent configuration")
@@ -345,16 +345,16 @@ def setup() -> None:
             _write_mcp_json(mcp_json)
             click.echo(f"  [ok] Wrote {mcp_json}")
         else:
-            click.echo("  Skipping -- run 'deepmail init' later")
+            click.echo("  Skipping -- run 'deep-email init' later")
 
-    click.echo("\nSetup complete! Restart your agent to start using Deepmail.")
+    click.echo("\nSetup complete! Restart your agent to start using Deep Email.")
 
 
 # ---- entry point ----
 
 
 def main() -> None:
-    """Entry point for the `deepmail` console script."""
+    """Entry point for the `deep-email` console script."""
     cli()
 
 

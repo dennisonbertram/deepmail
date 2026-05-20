@@ -1,5 +1,5 @@
 ---
-name: deepmail
+name: deep-email
 description: >
   Deep email understanding for AI agents. Search and analyze a user's Gmail
   to build persistent knowledge about their contacts, relationships, and life.
@@ -8,7 +8,7 @@ description: >
   Gmail, building profiles, and looking up people.
 license: AGPL-3.0
 compatibility:
-  requires: Deepmail MCP server (stdio transport via uvx)
+  requires: Deep Email MCP server (stdio transport via uvx)
   python: ">=3.11"
   mcp-server: poc/src/pi_email/mcp_server.py
 allowed-tools:
@@ -27,33 +27,33 @@ metadata:
   version: 0.1.0
 ---
 
-# Deepmail
+# Deep Email
 
 Give any AI agent deep understanding of a user's email -- contacts, relationships,
 family, company, investments, and more -- by searching and analyzing their Gmail.
 
 ## Prerequisites
 
-This skill requires the **Deepmail MCP server** to be running. The skill itself is
+This skill requires the **Deep Email MCP server** to be running. The skill itself is
 documentation that teaches agents how to use the MCP tools; the tools are provided
 by the server.
 
 ### 1. Install
 
 ```bash
-pip install deepmail
+pip install deep-email
 ```
 
 Or run directly without installing:
 
 ```bash
-uvx deepmail
+uvx deep-email
 ```
 
 ### 2. Authenticate with Gmail
 
 ```bash
-deepmail auth
+deep-email auth
 ```
 
 This opens a browser for Google OAuth. The resulting token is stored locally and
@@ -61,7 +61,7 @@ never leaves the machine.
 
 ### 3. Configure the MCP server
 
-Run `deepmail init` to write a `.mcp.json` in your project, or add manually:
+Run `deep-email init` to write a `.mcp.json` in your project, or add manually:
 
 ```json
 {
@@ -69,13 +69,13 @@ Run `deepmail init` to write a `.mcp.json` in your project, or add manually:
     "deepmail": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["deepmail"]
+      "args": ["deep-email"]
     }
   }
 }
 ```
 
-Or run `deepmail setup` for a full interactive walkthrough.
+Or run `deep-email setup` for a full interactive walkthrough.
 
 ## Available MCP tools
 

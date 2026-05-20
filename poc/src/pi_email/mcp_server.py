@@ -1,4 +1,4 @@
-"""Deepmail MCP server — deep email understanding for AI agents.
+"""Deep Email MCP server — deep email understanding for AI agents.
 
 Exposes ten tools over the Model Context Protocol:
 
@@ -23,8 +23,8 @@ candidates via get_candidates() instead. If ANTHROPIC_API_KEY is set in the
 server's environment, the internal judge runs as before.
 
 Usage:
-  deepmail                     # starts MCP server (stdio)
-  deepmail serve               # explicit serve command
+  deep-email                     # starts MCP server (stdio)
+  deep-email serve               # explicit serve command
   uv run python -m pi_email.mcp_entry   # module entry point
 """
 
@@ -135,13 +135,13 @@ def _format_gmail_error(exc: Exception, tool_name: str) -> str:
     # invalid_grant = refresh token revoked (Google Testing Mode 7-day expiry)
     if "invalid_grant" in exc_str or "invalid grant" in exc_str:
         return (
-            "Gmail token expired -- run 'deepmail auth' to refresh.\n"
+            "Gmail token expired -- run 'deep-email auth' to refresh.\n"
             "(Google Testing Mode tokens expire every 7 days.)"
         )
     # 401 = access token expired
     if "401" in exc_str or "unauthorized" in exc_str:
         return (
-            "Gmail token expired -- run 'deepmail auth' to refresh.\n"
+            "Gmail token expired -- run 'deep-email auth' to refresh.\n"
             "(Google Testing Mode tokens expire every 7 days.)"
         )
     # Generic fallback
@@ -166,8 +166,8 @@ def check_auth() -> str:
 
     if creds is None:
         return (
-            "Not authenticated. Run 'deepmail auth' to authenticate with Gmail.\n"
-            "Or run 'deepmail setup' for first-time interactive setup."
+            "Not authenticated. Run 'deep-email auth' to authenticate with Gmail.\n"
+            "Or run 'deep-email setup' for first-time interactive setup."
         )
 
     # Try to refresh if expired.
@@ -180,7 +180,7 @@ def check_auth() -> str:
             pass  # best-effort
     except Exception:
         return (
-            "Gmail token expired -- run 'deepmail auth' to refresh.\n"
+            "Gmail token expired -- run 'deep-email auth' to refresh.\n"
             "(Google Testing Mode tokens expire every 7 days.)"
         )
 
@@ -341,8 +341,8 @@ def build_profile(query: str = "") -> str:
 
     if creds is None:
         return (
-            "Not authenticated. Run 'deepmail auth' to authenticate with Gmail.\n"
-            "Or run 'deepmail setup' for first-time interactive setup.\n\n"
+            "Not authenticated. Run 'deep-email auth' to authenticate with Gmail.\n"
+            "Or run 'deep-email setup' for first-time interactive setup.\n\n"
             "Then try build_profile again."
         )
 
@@ -354,7 +354,7 @@ def build_profile(query: str = "") -> str:
             pass
     except Exception:
         return (
-            "Gmail token expired -- run 'deepmail auth' to refresh.\n"
+            "Gmail token expired -- run 'deep-email auth' to refresh.\n"
             "(Google Testing Mode tokens expire every 7 days.)\n\n"
             "Then try build_profile again."
         )
@@ -819,7 +819,7 @@ def search_emails(query: str, max_results: int = 20) -> str:
 
     if creds is None:
         return (
-            "Not authenticated. Run 'deepmail auth' to authenticate with Gmail.\n\n"
+            "Not authenticated. Run 'deep-email auth' to authenticate with Gmail.\n\n"
             "Then try search_emails again."
         )
 
@@ -831,7 +831,7 @@ def search_emails(query: str, max_results: int = 20) -> str:
             pass
     except Exception:
         return (
-            "Gmail token expired -- run 'deepmail auth' to refresh.\n"
+            "Gmail token expired -- run 'deep-email auth' to refresh.\n"
             "(Google Testing Mode tokens expire every 7 days.)\n\n"
             "Then try search_emails again."
         )
@@ -905,7 +905,7 @@ def read_email(message_id: str) -> str:
 
     if creds is None:
         return (
-            "Not authenticated. Run 'deepmail auth' to authenticate with Gmail.\n\n"
+            "Not authenticated. Run 'deep-email auth' to authenticate with Gmail.\n\n"
             "Then try read_email again."
         )
 
@@ -917,7 +917,7 @@ def read_email(message_id: str) -> str:
             pass
     except Exception:
         return (
-            "Gmail token expired -- run 'deepmail auth' to refresh.\n"
+            "Gmail token expired -- run 'deep-email auth' to refresh.\n"
             "(Google Testing Mode tokens expire every 7 days.)\n\n"
             "Then try read_email again."
         )

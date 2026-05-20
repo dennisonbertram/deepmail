@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "deepmail"
+name = "deep-email"
 version = "0.1.0"
 description = "MCP server that gives AI agents deep understanding of your email"
 readme = "README.md"
@@ -42,11 +42,12 @@ dev = [
 ]
 
 [project.scripts]
+deep-email = "pi_email.unified_cli:main"
 deepmail = "pi_email.unified_cli:main"
 
 [project.urls]
-Homepage = "https://github.com/user/deepmail"
-Repository = "https://github.com/user/deepmail"
+Homepage = "https://github.com/user/deep-email"
+Repository = "https://github.com/user/deep-email"
 
 [tool.hatch.build.targets.wheel]
 packages = ["poc/src/pi_email"]

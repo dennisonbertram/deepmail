@@ -42,7 +42,7 @@ GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
 # biography notes. Adding the scope here means new auth flows request it by
 # default; existing tokens minted before Pass 12A are missing it (see
 # `contacts.credentials_have_contacts_scope`) and the user must re-run
-# `deepmail auth --refresh-auth` to upgrade.
+# `deep-email auth --refresh-auth` to upgrade.
 CONTACTS_READONLY_SCOPE = "https://www.googleapis.com/auth/contacts.readonly"
 # Pass 14B: calendar.readonly. Family members routinely appear in calendar
 # event titles ("Vitus Birthday", "Mom's anniversary", "Family Dinner") and
@@ -50,7 +50,7 @@ CONTACTS_READONLY_SCOPE = "https://www.googleapis.com/auth/contacts.readonly"
 # pipeline never sees those signals. Pass 14B's GoogleCalendar client
 # (`calendar_evidence.py`) reads them. Tokens minted before Pass 14B are
 # missing this scope (see `calendar_evidence.credentials_have_calendar_scope`);
-# the user must re-run `deepmail auth --refresh-auth` to upgrade.
+# the user must re-run `deep-email auth --refresh-auth` to upgrade.
 CALENDAR_READONLY_SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
 DEFAULT_SCOPES: list[str] = [
     GMAIL_READONLY_SCOPE,
@@ -104,11 +104,11 @@ class OAuthConfig:
         if not client_id:
             raise RuntimeError(
                 "GOOGLE_CLIENT_ID not set.\n\n"
-                "You need a Google Cloud OAuth client ID to use Deepmail.\n"
+                "You need a Google Cloud OAuth client ID to use Deep Email.\n"
                 "Set it in your environment:\n"
                 "  export GOOGLE_CLIENT_ID='your-id.apps.googleusercontent.com'\n\n"
-                "Or run 'deepmail setup' for interactive setup.\n"
-                "See: https://github.com/user/deepmail#google-cloud-setup"
+                "Or run 'deep-email setup' for interactive setup.\n"
+                "See: https://github.com/user/deep-email#google-cloud-setup"
             )
 
         client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip() or None

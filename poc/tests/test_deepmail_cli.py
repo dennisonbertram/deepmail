@@ -1,10 +1,10 @@
-"""Tests for the Deepmail unified CLI and related changes.
+"""Tests for the Deep Email unified CLI and related changes.
 
 Covers:
-  - deepmail init writes .mcp.json with correct content
-  - deepmail init merges into existing .mcp.json
-  - deepmail init skips if already configured
-  - Missing GOOGLE_CLIENT_ID error message mentions 'deepmail setup'
+  - deep-email init writes .mcp.json with correct content
+  - deep-email init merges into existing .mcp.json
+  - deep-email init skips if already configured
+  - Missing GOOGLE_CLIENT_ID error message mentions 'deep-email setup'
   - MCP server name is 'deepmail'
 """
 
@@ -33,7 +33,7 @@ from pi_email.unified_cli import cli
 class TestDeepmailInit:
 
     def test_init_writes_mcp_json(self, tmp_path):
-        """deepmail init creates .mcp.json with correct content."""
+        """deep-email init creates .mcp.json with correct content."""
         runner = CliRunner()
         with runner.isolated_filesystem(temp_dir=tmp_path):
             result = runner.invoke(cli, ["init"])
@@ -49,10 +49,10 @@ class TestDeepmailInit:
             server = config["mcpServers"]["deepmail"]
             assert server["type"] == "stdio"
             assert server["command"] == "uvx"
-            assert server["args"] == ["deepmail"]
+            assert server["args"] == ["deep-email"]
 
     def test_init_merges_existing(self, tmp_path):
-        """deepmail init merges into existing .mcp.json with other servers."""
+        """deep-email init merges into existing .mcp.json with other servers."""
         runner = CliRunner()
         with runner.isolated_filesystem(temp_dir=tmp_path):
             # Pre-create .mcp.json with another server
@@ -77,7 +77,7 @@ class TestDeepmailInit:
             assert "deepmail" in config["mcpServers"]
 
     def test_init_skips_if_already_configured(self, tmp_path):
-        """deepmail init does not duplicate if deepmail is already in .mcp.json."""
+        """deep-email init does not duplicate if deepmail is already in .mcp.json."""
         runner = CliRunner()
         with runner.isolated_filesystem(temp_dir=tmp_path):
             existing = {
@@ -108,7 +108,7 @@ class TestDeepmailInit:
 class TestMissingClientIdError:
 
     def test_missing_client_id_error_message(self):
-        """OAuthConfig.from_env() error mentions 'deepmail setup'."""
+        """OAuthConfig.from_env() error mentions 'deep-email setup'."""
         from pi_email.oauth import OAuthConfig
 
         # Clear the env var and prevent dotenv from reloading it
@@ -119,7 +119,7 @@ class TestMissingClientIdError:
                 OAuthConfig.from_env()
 
             msg = str(exc_info.value)
-            assert "deepmail setup" in msg
+            assert "deep-email setup" in msg
             assert "GOOGLE_CLIENT_ID" in msg
 
 
@@ -144,8 +144,8 @@ class TestMcpServerName:
 
 class TestCliHelp:
 
-    def test_deepmail_help(self):
-        """deepmail --help shows all subcommands."""
+    def test_deep_email_help(self):
+        """deep-email --help shows all subcommands."""
         runner = CliRunner()
         result = runner.invoke(cli, ["--help"])
         assert result.exit_code == 0
@@ -157,22 +157,22 @@ class TestCliHelp:
         assert "setup" in result.output
         assert "serve" in result.output
 
-    def test_deepmail_init_help(self):
-        """deepmail init --help works."""
+    def test_deep_email_init_help(self):
+        """deep-email init --help works."""
         runner = CliRunner()
         result = runner.invoke(cli, ["init", "--help"])
         assert result.exit_code == 0
-        assert "Configure Deepmail" in result.output
+        assert "Configure Deep Email" in result.output
 
-    def test_deepmail_setup_help(self):
-        """deepmail setup --help works."""
+    def test_deep_email_setup_help(self):
+        """deep-email setup --help works."""
         runner = CliRunner()
         result = runner.invoke(cli, ["setup", "--help"])
         assert result.exit_code == 0
         assert "wizard" in result.output.lower()
 
-    def test_deepmail_auth_help(self):
-        """deepmail auth --help works."""
+    def test_deep_email_auth_help(self):
+        """deep-email auth --help works."""
         runner = CliRunner()
         result = runner.invoke(cli, ["auth", "--help"])
         assert result.exit_code == 0
@@ -192,7 +192,7 @@ class TestTokenExpiryMessage:
 
         exc = RuntimeError("invalid_grant: Token has been revoked")
         msg = _format_gmail_error(exc, "search_emails")
-        assert "deepmail auth" in msg
+        assert "deep-email auth" in msg
         assert "7 days" in msg
 
     def test_format_gmail_error_401(self):
@@ -201,7 +201,7 @@ class TestTokenExpiryMessage:
 
         exc = RuntimeError("HttpError 401: Request had invalid authentication credentials")
         msg = _format_gmail_error(exc, "read_email")
-        assert "deepmail auth" in msg
+        assert "deep-email auth" in msg
 
     def test_format_gmail_error_generic(self):
         """_format_gmail_error returns generic message for unknown errors."""
