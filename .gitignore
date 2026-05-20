@@ -1,0 +1,46 @@
+.env
+poc/.env
+profiles/
+poc/profiles/
+# Local embedding sidecar (sqlite, can rebuild on demand).
+embeddings.db
+poc/embeddings.db
+poc/embeddings.db-journal
+poc/embeddings.db-wal
+poc/embeddings.db-shm
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Standard Python
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+.Python
+.venv/
+poc/.venv/
+venv/
+env/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# MCP config (contains user-specific absolute paths)
+.mcp.json
+
+# Coordination / internal state
+.coord/
+
+# Build artifacts
+dist/
+
+# User-specific Claude Code settings
+.claude/settings.local.json

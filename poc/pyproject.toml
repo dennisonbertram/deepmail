@@ -1,0 +1,54 @@
+[project]
+name = "pi-email-poc"
+version = "0.1.0"
+description = "Proof-of-concept: deterministic retrieval + iterative LLM expansion + materialized profiles for email understanding."
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.39.0",
+    "pyyaml>=6.0",
+    "click>=8.1.0",
+    "python-dotenv>=1.0.0",
+    # Quote-stripping libraries per research/03; both are optional at runtime —
+    # strip_quotes.py falls back to a regex stripper if either import fails.
+    "mail-parser-reply>=1.4.0",
+    "quotequail>=0.4.0",
+    "google-auth>=2.53.0",
+    "google-auth-oauthlib>=1.4.0",
+    "google-api-python-client>=2.196.0",
+    "platformdirs>=4.9.6",
+    # Local-embedding pipeline (entity canonicalization + Rule C dedupe).
+    # sentence-transformers pulls torch + tokenizers transitively; the
+    # default model bge-base-en-v1.5 (~440MB) is downloaded on first use.
+    "sentence-transformers>=3.0",
+    # MCP server layer (Phase 3 — wraps the pipeline for Claude Code / Desktop).
+    "mcp>=1.0",
+    "numpy>=1.24",
+    # NER for entity extraction (entities.py). The `en_core_web_sm` model is
+    # NOT a PyPI package — it ships as a model file via
+    # `python -m spacy download en_core_web_sm`. The extractor downloads it on
+    # first use if missing.
+    # Upper bound: 3.8.14 dropped its CPython 3.14 wheel; 3.8.13 is the latest
+    # version with a cp314 ABI tag on PyPI. Loosen this when an upstream
+    # release restores 3.14 support.
+    "spacy>=3.7.0,<3.8.14",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[project.scripts]
+pi-email = "pi_email.cli:main"
+pi-email-mcp = "pi_email.mcp_entry:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pi_email"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
