@@ -91,7 +91,7 @@ def _load_dotenv_quietly() -> None:
         "expansion loop against your real mailbox or the bundled fixture corpus."
     )
 )
-@click.version_option("0.1.0", prog_name="pi-email")
+@click.version_option("0.1.1", prog_name="pi-email")
 @click.option(
     "-v",
     "--verbose",

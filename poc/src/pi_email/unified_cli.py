@@ -44,7 +44,7 @@ def _load_dotenv_quietly() -> None:
         "Use 'deep-email setup' for first-time configuration."
     ),
 )
-@click.version_option("0.1.0", prog_name="deep-email")
+@click.version_option("0.1.1", prog_name="deep-email")
 @click.option(
     "-v",
     "--verbose",
@@ -99,42 +99,46 @@ def auth(ctx: click.Context, force: bool, refresh_auth: bool) -> None:
     """Run the Google OAuth flow and persist tokens."""
     from pi_email.cli import auth as _auth_cmd, main as _cli_main
 
-    # Delegate to the existing cli.py auth command via Click's invoke.
-    # We build a fresh context from the old CLI group so all the
-    # decorators / options resolve correctly.
-    runner = click.testing.CliRunner(mix_stderr=False)
-    args = ["auth"]
-    if force:
-        args.append("--force")
-    if refresh_auth:
-        args.append("--refresh-auth")
-    result = runner.invoke(_cli_main, args)
-    # Replay output to the real stderr/stdout.
-    if result.output:
-        click.echo(result.output, nl=False)
-    if result.stderr_bytes:
-        click.echo(result.stderr_bytes.decode("utf-8", errors="replace"), err=True, nl=False)
-    if result.exit_code != 0:
-        sys.exit(result.exit_code)
+    # Invoke the old CLI's auth command directly via Click's context
+    # machinery. This avoids click.testing.CliRunner which requires an
+    # explicit `import click.testing` and behaves differently in
+    # production vs test environments.
+    sub_ctx = click.Context(_cli_main, info_name="deep-email")
+    sub_ctx.ensure_object(dict)
+    sub_ctx.obj["verbose"] = ctx.obj.get("verbose", False)
+    with sub_ctx:
+        sub_ctx.invoke(_auth_cmd, force=force, refresh_auth=refresh_auth)
 
 
 # ---- whoami ----
 
 
 @cli.command()
-@click.pass_context
-def whoami(ctx: click.Context) -> None:
-    """Confirm auth by calling Gmail's users.getProfile."""
-    from pi_email.cli import main as _cli_main
+def whoami() -> None:
+    """Check authentication status and account info."""
+    from pi_email.token_store import TokenStore
+    from pi_email.oauth import refresh_if_needed
 
-    runner = click.testing.CliRunner(mix_stderr=False)
-    result = runner.invoke(_cli_main, ["whoami"])
-    if result.output:
-        click.echo(result.output, nl=False)
-    if result.stderr_bytes:
-        click.echo(result.stderr_bytes.decode("utf-8", errors="replace"), err=True, nl=False)
-    if result.exit_code != 0:
-        sys.exit(result.exit_code)
+    creds = TokenStore().load()
+    if not creds:
+        click.echo("Not authenticated. Run: deep-email auth")
+        raise SystemExit(1)
+
+    try:
+        creds = refresh_if_needed(creds)
+    except Exception as e:
+        click.echo(f"Token expired or invalid: {e}")
+        click.echo("Run: deep-email auth")
+        raise SystemExit(1)
+
+    from googleapiclient.discovery import build
+
+    service = build("gmail", "v1", credentials=creds, cache_discovery=False)
+    profile = service.users().getProfile(userId="me").execute()
+
+    click.echo(f"email:           {profile.get('emailAddress', 'unknown')}")
+    click.echo(f"messages_total:  {profile.get('messagesTotal', 'unknown')}")
+    click.echo(f"threads_total:   {profile.get('threadsTotal', 'unknown')}")
 
 
 # ---- query ----
@@ -153,17 +157,13 @@ def whoami(ctx: click.Context) -> None:
 @click.pass_context
 def query(ctx: click.Context, query: tuple[str, ...], max_results: int) -> None:
     """Run a Gmail search and print matches."""
-    from pi_email.cli import main as _cli_main
+    from pi_email.cli import query as _query_cmd, main as _cli_main
 
-    args = ["query"] + list(query) + ["--max", str(max_results)]
-    runner = click.testing.CliRunner(mix_stderr=False)
-    result = runner.invoke(_cli_main, args)
-    if result.output:
-        click.echo(result.output, nl=False)
-    if result.stderr_bytes:
-        click.echo(result.stderr_bytes.decode("utf-8", errors="replace"), err=True, nl=False)
-    if result.exit_code != 0:
-        sys.exit(result.exit_code)
+    sub_ctx = click.Context(_cli_main, info_name="deep-email")
+    sub_ctx.ensure_object(dict)
+    sub_ctx.obj["verbose"] = ctx.obj.get("verbose", False)
+    with sub_ctx:
+        sub_ctx.invoke(_query_cmd, query=query, max_results=max_results)
 
 
 # ---- run ----
@@ -196,40 +196,13 @@ def query(ctx: click.Context, query: tuple[str, ...], max_results: int) -> None:
 @click.pass_context
 def run(ctx: click.Context, seed: str, **kwargs) -> None:
     """Drive the expansion loop end-to-end."""
-    from pi_email.cli import main as _cli_main
+    from pi_email.cli import run as _run_cmd, main as _cli_main
 
-    args = ["run", seed]
-    if kwargs.get("source"):
-        args += ["--source", kwargs["source"]]
-    if kwargs.get("max_corpus") is not None:
-        args += ["--max-corpus", str(kwargs["max_corpus"])]
-    if kwargs.get("max_per_query") is not None:
-        args += ["--max-per-query", str(kwargs["max_per_query"])]
-    if kwargs.get("profiles_dir"):
-        args += ["--profiles-dir", str(kwargs["profiles_dir"])]
-    if kwargs.get("fixtures_dir"):
-        args += ["--fixtures-dir", str(kwargs["fixtures_dir"])]
-    if kwargs.get("force_mock"):
-        args.append("--force-mock")
-    if kwargs.get("skip_judge"):
-        args.append("--skip-judge")
-    if kwargs.get("strict_extract") is True:
-        args.append("--strict-extract")
-    elif kwargs.get("strict_extract") is False:
-        args.append("--no-strict-extract")
-
-    verbose = ctx.obj.get("verbose", False)
-    if verbose:
-        args = ["-v"] + args
-
-    runner = click.testing.CliRunner(mix_stderr=False)
-    result = runner.invoke(_cli_main, args)
-    if result.output:
-        click.echo(result.output, nl=False)
-    if result.stderr_bytes:
-        click.echo(result.stderr_bytes.decode("utf-8", errors="replace"), err=True, nl=False)
-    if result.exit_code != 0:
-        sys.exit(result.exit_code)
+    sub_ctx = click.Context(_cli_main, info_name="deep-email")
+    sub_ctx.ensure_object(dict)
+    sub_ctx.obj["verbose"] = ctx.obj.get("verbose", False)
+    with sub_ctx:
+        sub_ctx.invoke(_run_cmd, seed=seed, **kwargs)
 
 
 # ---- init ----

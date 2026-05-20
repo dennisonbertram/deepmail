@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "deep-email"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP server that gives AI agents deep understanding of your email"
 readme = "README.md"
 license = "AGPL-3.0-or-later"
