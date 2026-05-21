@@ -1,56 +1,38 @@
-# Deep Email
+# Deepmail
 
-An MCP server that gives AI agents deep understanding of your email -- contacts, relationships, family, company, investments, and more.
+**Your agent can search your email. It can't understand it.**
 
-## What it does
+Gmail MCP servers let agents read individual messages. But understanding email — knowing who matters, what relationships exist, what's happening in your life and business — requires investigation, cross-referencing, and memory. Agents can't do that in a single search.
 
-Deep Email scans your Gmail (read-only) and builds persistent profiles of the people in your life. Once configured, any MCP-compatible AI agent (Claude Code, Claude Desktop, Cursor, etc.) can look up people, understand your relationships, and use your email history as context.
+Deepmail gives your AI agent 10 tools to investigate, analyze, and remember your email. It builds persistent knowledge that survives across sessions — so your agent actually knows you.
 
-### Available tools
+## What your agent can do with Deepmail
 
-| Tool | Description |
-|------|-------------|
-| `check_auth` | Verify Gmail authentication status |
-| `who_is(person)` | Look up a person from cached profiles |
-| `about_me(topic)` | Get context about the user ("overview", "family", "team", etc.) |
-| `build_profile(query)` | Start a background Gmail scan (~5 min; returns immediately) |
-| `build_status()` | Check progress of a running build |
-| `profile_health()` | Check freshness and coverage of cached profiles |
-| `get_candidates()` | Return structured candidates from the latest build for review |
-| `search_emails(query)` | Lightweight Gmail search (sender/date/subject/snippet) |
-| `read_email(message_id)` | Fetch the full body of a specific email by message ID |
-| `reset_profile(confirm)` | Wipe all generated data and start fresh |
+```
+You: "Who are my investors?"
 
-## Quick start
+Agent searches your Gmail for term sheets, fund communications, board emails.
+Agent reads specific emails to understand deal details.
+Agent cross-references names across rounds.
+Agent builds a complete investor table — firms, key contacts, amounts, dates.
 
-### 1. Install
+Next session, your agent already knows. No re-searching.
+```
+
+## Install
 
 ```bash
 pip install deep-email
 ```
 
-Or run directly without installing:
-
+Or run directly:
 ```bash
-uvx deep-email
+uvx deep-email setup
 ```
 
-### 2. Set up Google Cloud credentials
+### Configure your agent
 
-You need a Google Cloud project with the Gmail API enabled. See [Google Cloud Setup](#google-cloud-setup) below for detailed steps.
-
-### 3. Authenticate with Gmail
-
-```bash
-deep-email auth
-```
-
-This opens a browser for Google OAuth. The token is stored locally and never leaves your machine.
-
-### 4. Configure your AI agent
-
-Run `deep-email init` to write a `.mcp.json` in your project, or add manually:
-
+Add to your project's `.mcp.json`:
 ```json
 {
   "mcpServers": {
@@ -63,156 +45,107 @@ Run `deep-email init` to write a `.mcp.json` in your project, or add manually:
 }
 ```
 
-Or run `deep-email setup` for a full interactive walkthrough that handles credentials, auth, and agent config.
+Or use the CLI:
+```bash
+deep-email init   # writes .mcp.json for you
+```
 
-### 5. Use it
+### Install the skill (teaches your agent how to use the tools)
 
-Once configured, your AI agent will automatically:
+```bash
+npx skills add dennisonbertram/deepmail
+```
 
-- Check your email context at session start
-- Look up people when you mention them by name
-- Search your Gmail when investigating topics
-- Build deep profiles of contacts on request
+Works with Claude Code, Cursor, Codex, GitHub Copilot, Windsurf, Gemini CLI, and 40+ other agents.
 
 ## Google Cloud Setup
 
-Deep Email uses the Gmail API with OAuth 2.0. You need to create a Google Cloud project and obtain OAuth credentials. This is a one-time setup that takes about 5 minutes.
+Deepmail needs read-only access to your Gmail. You'll need a Google Cloud project with OAuth credentials (~10 min, one-time).
 
-### Step 1: Create a Google Cloud project
+<details>
+<summary><strong>Step-by-step setup</strong></summary>
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Click the project dropdown at the top of the page
-3. Click **New Project**
-4. Enter a name (e.g., "pi-email") and click **Create**
-5. Make sure the new project is selected in the dropdown
+### 1. Create a Google Cloud Project
+- Go to [Google Cloud Console](https://console.cloud.google.com/)
+- **Select a project** → **New Project** → name it anything → **Create**
 
-### Step 2: Enable the Gmail API
+### 2. Enable the Gmail API
+- Go to [Gmail API](https://console.cloud.google.com/apis/library/gmail.googleapis.com)
+- Click **Enable**
 
-1. Go to **APIs & Services > Library** (or search "Gmail API" in the top search bar)
-2. Find **Gmail API** and click on it
-3. Click **Enable**
+### 3. Configure OAuth Consent Screen
+- Go to [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent)
+- Choose **External** → **Create**
+- App name: anything. Support email: yours. Developer contact: yours.
+- **Scopes** → **Add or Remove Scopes** → find `gmail.readonly` → check it → **Update** → **Save**
+- **Test users** → **Add Users** → add your email → **Save**
 
-### Step 3: Configure the OAuth consent screen
+> **Note:** Your app starts in "Testing" mode. Tokens expire every 7 days — re-run `deep-email auth` when they do. For non-expiring tokens, submit your app for verification on the consent screen (optional for personal use).
 
-1. Go to **APIs & Services > OAuth consent screen**
-2. Select **External** as the user type (unless you have a Google Workspace org) and click **Create**
-3. Fill in the required fields:
-   - **App name**: deepmail (or anything you like)
-   - **User support email**: your email address
-   - **Developer contact**: your email address
-4. Click **Save and Continue**
-5. On the **Scopes** page, click **Add or Remove Scopes**
-6. Search for and add `https://www.googleapis.com/auth/gmail.readonly`
-7. Click **Update**, then **Save and Continue**
-8. On the **Test users** page, click **Add Users** and add your Gmail address
-9. Click **Save and Continue**, then **Back to Dashboard**
+### 4. Create Credentials
+- Go to [Credentials](https://console.cloud.google.com/apis/credentials)
+- **Create Credentials** → **OAuth client ID** → **Desktop app** → **Create**
+- Copy the **Client ID**
 
-### Step 4: Create OAuth credentials
-
-1. Go to **APIs & Services > Credentials**
-2. Click **Create Credentials > OAuth client ID**
-3. Select **Desktop app** as the application type
-4. Enter a name (e.g., "deepmail desktop") and click **Create**
-5. You will see a dialog with your **Client ID** and **Client Secret** -- copy the Client ID
-
-### Step 5: Configure Deep Email
-
-Set your Client ID as an environment variable:
-
+### 5. Set the credential
 ```bash
-export GOOGLE_CLIENT_ID="your-client-id-here.apps.googleusercontent.com"
+export GOOGLE_CLIENT_ID="your-id.apps.googleusercontent.com"
 ```
 
-Or create a `.env` file in your working directory:
+Or add to `~/.zshrc` / `~/.bashrc` for persistence.
 
-```
-GOOGLE_CLIENT_ID=your-client-id-here.apps.googleusercontent.com
-```
+</details>
 
-Then run authentication:
+### Authenticate
 
 ```bash
 deep-email auth
 ```
 
-Or use the interactive setup wizard which handles everything:
+Opens your browser for Google consent. One-time setup. Read-only access — Deepmail never sends, modifies, or deletes email.
 
-```bash
-deep-email setup
-```
+## Tools
 
-### Important notes about Google OAuth in testing mode
-
-- **Testing mode**: Your app starts in "Testing" mode on Google Cloud. This is fine for personal use.
-- **Token expiry**: In testing mode, OAuth tokens expire every **7 days**. When they expire, re-run `deep-email auth` to re-authenticate.
-- **Publishing**: If you want tokens that don't expire weekly, you can submit your app for verification on the OAuth consent screen. This is optional for personal use.
-- **Permissions**: Deep Email only requests `gmail.readonly` -- it cannot send, modify, or delete any emails.
-
-## MCP configuration
-
-### Installed from PyPI (recommended)
-
-```json
-{
-  "mcpServers": {
-    "deepmail": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": ["deep-email"]
-    }
-  }
-}
-```
-
-Or just run `deep-email init` to write this automatically.
-
-### Local development (from a clone of this repo)
-
-```json
-{
-  "mcpServers": {
-    "deepmail": {
-      "type": "stdio",
-      "command": "uv",
-      "args": [
-        "run",
-        "--directory",
-        "/path/to/pi-email-deep-context-library",
-        "deep-email"
-      ]
-    }
-  }
-}
-```
-
-Replace `/path/to/pi-email-deep-context-library` with the actual path on your machine.
-
-## Install as a Skill
-
-```bash
-npx skills add dennison/pi-email-deep-context-library
-```
-
-This installs the `deep-email` skill, which teaches agents the investigation methodology for using the MCP tools. You still need the MCP server configured (see above).
+| Tool | What it does |
+|---|---|
+| `search_emails(query)` | Search Gmail — returns sender, date, subject, snippet |
+| `read_email(message_id)` | Read the full body of a specific email |
+| `build_profile(query)` | Deep investigation — extracts people, builds profiles |
+| `build_status()` | Check progress of a running investigation |
+| `get_candidates()` | Review extracted candidates from latest investigation |
+| `who_is(person)` | Look up a person from cached knowledge |
+| `about_me(topic)` | What the agent knows about you, by topic |
+| `profile_health()` | Check how fresh the cached knowledge is |
+| `reset_profile(confirm)` | Wipe cached knowledge and start fresh |
+| `check_auth()` | Verify Gmail connection |
 
 ## How it works
 
-1. **OAuth**: Connects to Gmail with read-only access via Google's OAuth 2.0 flow
-2. **Search**: Uses Gmail's search API to find relevant emails based on queries
-3. **Extract**: Parses email content, strips quotes, extracts entities (names, relationships, organizations)
-4. **Embed**: Builds local embeddings for entity canonicalization and deduplication
-5. **Profile**: Materializes structured profiles of contacts and relationships into local Markdown files
-6. **Serve**: Exposes everything through MCP tools that any compatible AI agent can call
+1. **Your agent reads the skill** and learns how to investigate email topics
+2. **It searches your Gmail** using `search_emails` — following leads, reading full emails when needed
+3. **It builds profiles** using `build_profile` — extracting people, relationships, and context
+4. **Knowledge persists** — `who_is` and `about_me` return cached results instantly in future sessions
+5. **It gets smarter** — each investigation adds to the persistent knowledge base
 
-All processing happens locally. Profiles are cached so subsequent lookups are instant.
+All data stays on your machine. The MCP server runs locally. No cloud storage, no telemetry.
 
-## Security
+## Examples
 
-- **Read-only**: Deep Email only requests `gmail.readonly` permission. It cannot send, modify, or delete emails.
-- **Local-first**: All data (profiles, embeddings, OAuth tokens) stays on your machine. Nothing is uploaded to any server.
-- **No telemetry**: Deep Email does not phone home, track usage, or collect any analytics.
-- **LLM calls**: If `ANTHROPIC_API_KEY` is set, the build pipeline uses Claude to judge candidate relationships. This is optional -- without it, the calling agent (Claude Code, Cursor, etc.) reviews candidates instead.
+**"Figure out my investors"** — Agent searches for term sheets, fund emails, board communications. Builds a table of investors across rounds with key contacts and amounts.
+
+**"Who's on my team?"** — Agent searches internal comms, standup emails, shared docs. Maps your org with roles and last-contact dates.
+
+**"Tell me about my relationship with [person]"** — Agent searches all correspondence, synthesizes a relationship summary with timeline.
+
+**"What should I know before my meeting with [person]?"** — Agent pulls recent threads, open items, relationship context.
 
 ## License
 
-AGPL-3.0-or-later. See [LICENSE](LICENSE) for details.
+AGPL-3.0 — free to use, modify, and distribute. If you run it as a hosted service, you must release your source under the same license. See [LICENSE](./LICENSE).
+
+## Security
+
+- **Read-only**: Only `gmail.readonly` scope. Never sends, modifies, or deletes.
+- **Local-first**: All data on your machine. No cloud, no telemetry.
+- **OAuth scoped**: Minimum required permissions.
+- **Wipe anytime**: `reset_profile(confirm="yes")` deletes all cached data.
