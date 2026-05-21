@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Privacy Policy &mdash; Deepmail</title>
+  <meta name="description" content="Deepmail privacy policy. Your data stays on your machine.">
+
+  <!-- Fonts: Geist + Geist Mono from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@350;400;450;500;600;700&family=Geist+Mono:wght@400;450&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Nav — N9 Edge-aligned minimal -->
+  <nav class="nav" aria-label="Primary">
+    <a href="/" class="nav__wordmark">Deepmail</a>
+    <a href="https://github.com/dennisonbertram/deepmail" class="nav__link" rel="noopener">GitHub</a>
+  </nav>
+
+  <main class="page">
+
+    <section class="section section--hero">
+      <h1 class="section__heading">Privacy Policy</h1>
+      <p class="section__body"><strong>Last updated: May 2026</strong></p>
+    </section>
+
+    <section class="section">
+      <h2 class="section__heading">What Deepmail does</h2>
+      <p class="section__body">Deepmail is an open-source tool that helps AI agents understand your email. It connects to your Gmail account with read-only access to search and analyze your messages locally on your computer.</p>
+    </section>
+
+    <section class="section">
+      <h2 class="section__heading">What data we access</h2>
+      <p class="section__body">Deepmail requests <code>gmail.readonly</code> access to your Google account. This allows it to:</p>
+      <ul class="section__body" style="padding-inline-start: var(--space-lg); margin-block-start: var(--space-sm);">
+        <li>Search your Gmail messages</li>
+        <li>Read email content (sender, subject, body)</li>
+      </ul>
+      <p class="section__body">Deepmail <strong>cannot</strong> send, modify, or delete your emails.</p>
+    </section>
+
+    <section class="section">
+      <h2 class="section__heading">Where your data goes</h2>
+      <p class="section__body"><strong>Nowhere.</strong> Deepmail runs entirely on your local machine.</p>
+      <ul class="section__body" style="padding-inline-start: var(--space-lg); margin-block-start: var(--space-sm);">
+        <li>Email content is processed locally and never uploaded to any server</li>
+        <li>OAuth tokens are stored locally on your filesystem with restricted permissions</li>
+        <li>Cached profiles and search results are stored locally</li>
+        <li>No analytics, telemetry, or tracking of any kind</li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2 class="section__heading">Third-party services</h2>
+      <p class="section__body">Deepmail may optionally use the Anthropic API (Claude) for entity classification if you configure an API key. In that case, email excerpts are sent to Anthropic's API for classification. This is optional&mdash;the tool works without it, with the calling AI agent performing classification instead.</p>
+    </section>
+
+    <section class="section">
+      <h2 class="section__heading">Data deletion</h2>
+      <p class="section__body">Run <code>deep-email reset_profile --confirm yes</code> to delete all cached data. Delete your OAuth tokens by removing the files in your platform's application data directory. Revoke Deepmail's access to your Google account at <a href="https://myaccount.google.com/permissions" class="footer__link" style="color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px;">myaccount.google.com/permissions</a>.</p>
+    </section>
+
+    <section class="section">
+      <h2 class="section__heading">Open source</h2>
+      <p class="section__body">Deepmail's source code is publicly available at <a href="https://github.com/dennisonbertram/deepmail" class="footer__link" style="color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px;">github.com/dennisonbertram/deepmail</a>. You can audit exactly what the tool does with your data.</p>
+    </section>
+
+    <section class="section">
+      <h2 class="section__heading">Contact</h2>
+      <p class="section__body">For privacy questions: <a href="mailto:dennison@withtally.com" class="footer__link" style="color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px;">dennison@withtally.com</a></p>
+    </section>
+
+  </main>
+
+  <!-- Footer — Ft2 Inline single line -->
+  <footer class="footer">
+    <div class="footer__inner">
+      <span>Deepmail</span>
+      <span class="footer__sep">&middot;</span>
+      <span>AGPL-3.0</span>
+      <span class="footer__sep">&middot;</span>
+      <a href="/privacy" class="footer__link">Privacy</a>
+      <span class="footer__sep">&middot;</span>
+      <a href="/terms" class="footer__link">Terms</a>
+      <span class="footer__sep">&middot;</span>
+      <a href="https://github.com/dennisonbertram/deepmail" class="footer__link" rel="noopener">GitHub</a>
+    </div>
+  </footer>
+
+</body>
+</html>
