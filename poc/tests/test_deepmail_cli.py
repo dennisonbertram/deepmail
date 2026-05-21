@@ -142,6 +142,60 @@ class TestMcpServerName:
 # ====================================================================
 
 
+class TestAccountsCommand:
+
+    def test_accounts_no_accounts(self):
+        """deep-email accounts with no accounts -> 'No authenticated accounts'."""
+        runner = CliRunner()
+        with patch("pi_email.token_store.TokenStore.list_accounts", return_value=[]):
+            result = runner.invoke(cli, ["accounts"])
+            assert result.exit_code == 1
+            assert "No authenticated accounts" in result.output
+
+    def test_accounts_lists_accounts(self):
+        """deep-email accounts with two accounts -> lists them."""
+        from unittest.mock import MagicMock
+
+        runner = CliRunner()
+        mock_creds = MagicMock()
+        mock_creds.expired = False
+
+        with (
+            patch("pi_email.token_store.TokenStore._maybe_migrate"),
+            patch("pi_email.token_store.TokenStore.list_accounts", return_value=[
+                "work@example.com",
+                "personal@gmail.com",
+            ]),
+            patch("pi_email.token_store.TokenStore.load", return_value=mock_creds),
+            patch("pi_email.oauth.refresh_if_needed"),
+            patch("googleapiclient.discovery.build") as mock_build,
+        ):
+            # Mock the Gmail API profile call.
+            mock_service = MagicMock()
+            mock_build.return_value = mock_service
+            mock_service.users.return_value.getProfile.return_value.execute.return_value = {
+                "messagesTotal": 5000,
+            }
+
+            result = runner.invoke(cli, ["accounts"])
+            assert result.exit_code == 0
+            assert "work@example.com" in result.output
+            assert "personal@gmail.com" in result.output
+            assert "5,000 messages" in result.output
+
+    def test_auth_remove(self):
+        """deep-email auth --remove user@example.com removes the account."""
+        runner = CliRunner()
+        with (
+            patch("pi_email.token_store.TokenStore._maybe_migrate"),
+            patch("pi_email.token_store.TokenStore.remove", return_value=True) as mock_remove,
+        ):
+            result = runner.invoke(cli, ["auth", "--remove", "user@example.com"])
+            assert result.exit_code == 0
+            assert "Removed" in result.output
+            mock_remove.assert_called_once_with("user@example.com")
+
+
 class TestCliHelp:
 
     def test_deep_email_help(self):
@@ -156,6 +210,7 @@ class TestCliHelp:
         assert "init" in result.output
         assert "setup" in result.output
         assert "serve" in result.output
+        assert "accounts" in result.output
 
     def test_deep_email_init_help(self):
         """deep-email init --help works."""

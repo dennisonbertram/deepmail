@@ -102,17 +102,31 @@ def _run_pipeline(status_path: Path, query: str, started_at: str, *, skip_judge:
     profiles_dir = POC_ROOT / "profiles"
     profiles_dir.mkdir(parents=True, exist_ok=True)
 
-    # ---- Auth ----
+    # ---- Auth (multi-account) ----
     store = TokenStore()
-    creds = store.load()
-    if creds is None:
-        raise RuntimeError("Not authenticated. Run: uv run pi-email auth")
+    all_accounts = store.load_all()
+    if not all_accounts:
+        raise RuntimeError("Not authenticated. Run: uv run deep-email auth")
 
-    refresh_if_needed(creds)
-    try:
-        store.save(creds)
-    except Exception:
-        pass
+    # Refresh all accounts and collect valid ones.
+    valid_accounts: dict[str, "Credentials"] = {}
+    for acct_email, acct_creds in all_accounts.items():
+        try:
+            refresh_if_needed(acct_creds)
+            try:
+                store.save(acct_creds, email=acct_email)
+            except Exception:
+                pass
+            valid_accounts[acct_email] = acct_creds
+        except Exception:
+            pass  # Skip accounts with expired tokens.
+
+    if not valid_accounts:
+        raise RuntimeError("All account tokens expired. Run: uv run deep-email auth")
+
+    # Use the first valid account as the "primary" for user identity.
+    primary_email = next(iter(valid_accounts))
+    creds = valid_accounts[primary_email]
 
     update_status(status_path, {
         "state": "running",
@@ -139,7 +153,9 @@ def _run_pipeline(status_path: Path, query: str, started_at: str, *, skip_judge:
         pass
 
     # ---- Build the loop with progress callback ----
-    searcher = GmailSearcher(creds, max_results_per_query=500)
+    # Create a composite searcher that searches across all accounts.
+    from .multi_searcher import MultiAccountSearcher
+    searcher = MultiAccountSearcher(valid_accounts, max_results_per_query=500)
     proposer = Proposer(force_mock=False)
 
     # Track progress via the on_event callback
@@ -175,28 +191,38 @@ def _run_pipeline(status_path: Path, query: str, started_at: str, *, skip_judge:
     )
     result = loop.run(query)
 
-    # ---- Calendar evidence (Pass 14B) ----
+    # ---- Calendar evidence (Pass 14B) — all accounts ----
     family_calendar_persons: list | None = None
-    if credentials_have_calendar_scope(creds):
-        try:
-            cal_client = GoogleCalendar(creds)
-            family_calendar_persons = cal_client.list_family_calendar_persons()
-        except Exception:
-            family_calendar_persons = None
+    for _acct_email, _acct_creds in valid_accounts.items():
+        if credentials_have_calendar_scope(_acct_creds):
+            try:
+                cal_client = GoogleCalendar(_acct_creds)
+                persons = cal_client.list_family_calendar_persons()
+                if persons:
+                    if family_calendar_persons is None:
+                        family_calendar_persons = []
+                    family_calendar_persons.extend(persons)
+            except Exception:
+                pass
 
-    # ---- Contacts evidence (Pass 12A) ----
+    # ---- Contacts evidence (Pass 12A) — all accounts ----
     family_contacts: list | None = None
-    if credentials_have_contacts_scope(creds):
-        try:
-            client = GoogleContacts(creds)
-            surname: str | None = None
-            if user_self and user_self.get("display_name"):
-                toks = str(user_self["display_name"]).strip().split()
-                if len(toks) >= 2:
-                    surname = toks[-1]
-            family_contacts = client.list_family_members(user_surname=surname)
-        except Exception:
-            family_contacts = None
+    for _acct_email, _acct_creds in valid_accounts.items():
+        if credentials_have_contacts_scope(_acct_creds):
+            try:
+                client = GoogleContacts(_acct_creds)
+                surname: str | None = None
+                if user_self and user_self.get("display_name"):
+                    toks = str(user_self["display_name"]).strip().split()
+                    if len(toks) >= 2:
+                        surname = toks[-1]
+                members = client.list_family_members(user_surname=surname)
+                if members:
+                    if family_contacts is None:
+                        family_contacts = []
+                    family_contacts.extend(members)
+            except Exception:
+                pass
 
     # ---- Fold calendar into contacts (Pass 14B) ----
     if family_calendar_persons:

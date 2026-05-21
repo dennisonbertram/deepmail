@@ -1,4 +1,4 @@
-"""Per-user OAuth token persistence.
+"""Per-user OAuth token persistence (multi-account).
 
 Tokens live OUTSIDE the repo (refresh tokens are long-lived credentials —
 checking them in would be a security incident). We use platformdirs to derive
@@ -8,9 +8,18 @@ the right per-OS user-data path:
   - Linux:   ~/.local/share/pi-email-deep-context-library/   (XDG_DATA_HOME)
   - Windows: %APPDATA%/pi-email-deep-context-library/
 
-The token file is written atomically (tmp -> fsync -> rename) with mode 0o600
-so a half-finished refresh or a hostile coresident process can't read the
-refresh token from disk.
+Multi-account layout:
+  accounts/<email>.json   — one file per authenticated Google account
+
+Migration: if the legacy ``tokens.json`` exists, it is automatically migrated
+to the ``accounts/`` directory on first use.  The email is discovered by
+calling Gmail's ``getProfile`` endpoint; if that fails the file is stored
+under ``unknown@migrated.json`` and renamed the next time the account is
+identified.
+
+The token files are written atomically (tmp -> fsync -> rename) with mode
+0o600 so a half-finished refresh or a hostile coresident process can't read
+the refresh token from disk.
 
 Storage shape is exactly what google.oauth2.credentials.Credentials round-trips
 via `from_authorized_user_info` / `to_json` — see oauth.py for the schema.
@@ -19,6 +28,7 @@ via `from_authorized_user_info` / `to_json` — see oauth.py for the schema.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import stat
 import tempfile
@@ -27,14 +37,26 @@ from pathlib import Path
 from google.oauth2.credentials import Credentials
 from platformdirs import user_data_dir
 
+log = logging.getLogger(__name__)
+
 DEFAULT_APP_NAME = "pi-email-deep-context-library"
-_TOKEN_FILENAME = "tokens.json"
+_TOKEN_FILENAME = "tokens.json"          # legacy single-account filename
+_ACCOUNTS_DIR = "accounts"
 _FILE_MODE = 0o600
 _DIR_MODE = 0o700
 
 
 class TokenStore:
-    """JSON-backed per-user token persistence with 0o600 file permissions."""
+    """JSON-backed per-user token persistence with multi-account support.
+
+    Each authenticated Google account is stored as a separate JSON file under
+    ``<data_dir>/accounts/<email>.json``.  The legacy single-file layout
+    (``<data_dir>/tokens.json``) is auto-migrated on first access.
+
+    The ``path`` constructor parameter is retained for test isolation: when
+    set, the store operates in **legacy single-account mode** (no accounts/
+    directory, no migration).  Production code should omit it.
+    """
 
     def __init__(
         self,
@@ -42,88 +64,195 @@ class TokenStore:
         path: Path | None = None,
     ):
         self.app_name = app_name
+        self._legacy_mode = path is not None
+
         if path is not None:
+            # Test-isolation / legacy mode: single file, no accounts dir.
             self.path = Path(path)
+            self._data_dir = self.path.parent
+            self._accounts_dir = self._data_dir / _ACCOUNTS_DIR
         else:
-            # platformdirs handles macOS / Linux / Windows correctly without
-            # us hardcoding ~/.config or ~/Library/Application Support.
-            self.path = Path(user_data_dir(app_name)) / _TOKEN_FILENAME
+            self._data_dir = Path(user_data_dir(app_name))
+            self.path = self._data_dir / _TOKEN_FILENAME   # legacy path
+            self._accounts_dir = self._data_dir / _ACCOUNTS_DIR
 
-    # ----------------------------------------------------------------
+        # Auto-migrate on construction (no-op if already migrated).
+        if not self._legacy_mode:
+            self._maybe_migrate()
 
-    def load(self) -> Credentials | None:
-        """Return Credentials if a token file exists and is parseable, else None.
+    # ================================================================
+    # Multi-account public API
+    # ================================================================
 
-        Returns None (not a raise) for the missing-file case because the
-        caller's flow is "load -> if None, run acquire_credentials". A corrupt
-        file IS surfaced (raises JSONDecodeError) — that signals tampering or
-        a partial write we should not silently overwrite.
+    def save(self, creds: Credentials, email: str | None = None) -> None:
+        """Save credentials for a specific account.
+
+        If *email* is ``None`` **and** we're in legacy mode (test path set),
+        fall back to writing to ``self.path`` for backward compat.  In
+        production (no explicit path) email is required.
         """
-        if not self.path.exists():
+        if email is None and self._legacy_mode:
+            self._atomic_write(self.path, creds)
+            return
+
+        if email is None:
+            raise ValueError("email is required for multi-account save")
+
+        self._accounts_dir.mkdir(parents=True, exist_ok=True)
+        self._chmod_dir(self._accounts_dir)
+        dest = self._accounts_dir / f"{email}.json"
+        self._atomic_write(dest, creds)
+
+    def load(self, email: str | None = None) -> Credentials | None:
+        """Load credentials for a specific account.
+
+        If *email* is ``None``:
+          - Legacy mode (path set): read from ``self.path``.
+          - Multi-account mode: return the **first** account found (for
+            backward compat with callers that aren't account-aware yet).
+        """
+        if email is not None:
+            return self._read_creds(self._accounts_dir / f"{email}.json")
+
+        if self._legacy_mode:
+            return self._read_creds(self.path)
+
+        # Multi-account fallback: return first account.
+        accounts = self.load_all()
+        if not accounts:
             return None
-        with self.path.open("r", encoding="utf-8") as f:
-            info = json.load(f)
-        # Credentials.from_authorized_user_info requires client_id, client_secret,
-        # refresh_token keys (even if client_secret is ""). save() preserves them.
-        return Credentials.from_authorized_user_info(info)
+        return next(iter(accounts.values()))
 
-    def save(self, creds: Credentials) -> None:
-        """Atomic write to self.path with 0o600 perms.
+    def load_all(self) -> dict[str, Credentials]:
+        """Load all authenticated accounts.  Returns ``{email: creds}``."""
+        accounts: dict[str, Credentials] = {}
+        if not self._accounts_dir.exists():
+            return accounts
+        for f in sorted(self._accounts_dir.glob("*.json")):
+            creds = self._read_creds(f)
+            if creds is not None:
+                accounts[f.stem] = creds
+        return accounts
 
-        Writes JSON of the shape `Credentials.from_authorized_user_info` consumes.
-        Always includes `client_secret` (possibly empty) so the round-trip works.
-        """
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        # Best-effort dir perms — we own this dir; don't fail if chmod is a noop
-        # (e.g. on Windows where POSIX modes don't apply meaningfully).
-        try:
-            os.chmod(self.path.parent, _DIR_MODE)
-        except (OSError, NotImplementedError):  # pragma: no cover
-            pass
+    def list_accounts(self) -> list[str]:
+        """Return email addresses of all authenticated accounts."""
+        if not self._accounts_dir.exists():
+            return []
+        return sorted(f.stem for f in self._accounts_dir.glob("*.json"))
 
-        payload = self._serialize(creds)
-
-        # Atomic write: write to a sibling tmp file, fsync, rename.
-        # Using mkstemp(dir=...) so the tmp file lands on the same filesystem
-        # as the destination — that's what makes the rename atomic.
-        fd, tmp_path = tempfile.mkstemp(
-            prefix=".tokens.", suffix=".tmp", dir=str(self.path.parent)
-        )
-        try:
-            # Restrict perms BEFORE writing the secret, not after — closes the
-            # race where another process could read the temp file's content
-            # between create and chmod.
-            os.fchmod(fd, _FILE_MODE)
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(payload, f, indent=2, sort_keys=True)
-                f.flush()
-                os.fsync(f.fileno())
-            # On POSIX, rename is atomic on the same filesystem and replaces
-            # any existing destination.
-            os.replace(tmp_path, self.path)
-        except BaseException:
-            # Best-effort cleanup; never mask the original exception.
-            try:
-                os.unlink(tmp_path)
-            except FileNotFoundError:
-                pass
-            raise
-        # Belt-and-suspenders: re-chmod the final path in case the FS dropped
-        # the mode through the rename (some exotic FSes do; macOS HFS+/APFS
-        # preserves it but we don't want to depend on that).
-        try:
-            os.chmod(self.path, _FILE_MODE)
-        except (OSError, NotImplementedError):  # pragma: no cover
-            pass
+    def remove(self, email: str) -> bool:
+        """Remove an account's credentials.  Returns True if deleted."""
+        path = self._accounts_dir / f"{email}.json"
+        if path.exists():
+            path.unlink()
+            return True
+        return False
 
     def clear(self) -> None:
-        """Remove the token file. No-op if it doesn't exist."""
+        """Remove the legacy token file.  No-op if it doesn't exist.
+
+        For multi-account, use ``remove(email)`` instead.
+        """
         try:
             self.path.unlink()
         except FileNotFoundError:
             pass
 
-    # ----------------------------------------------------------------
+    # ================================================================
+    # Migration from legacy single-file layout
+    # ================================================================
+
+    def _maybe_migrate(self) -> None:
+        """If the legacy ``tokens.json`` exists, migrate to accounts/."""
+        if not self.path.exists():
+            return
+        if self._accounts_dir.exists() and any(self._accounts_dir.glob("*.json")):
+            # Already migrated but old file lingers — just remove it.
+            try:
+                self.path.unlink()
+            except FileNotFoundError:
+                pass
+            return
+
+        creds = self._read_creds(self.path)
+        if creds is None:
+            return
+
+        # Determine the email address.
+        email = self._resolve_email(creds)
+        if not email:
+            email = "unknown@migrated"
+
+        self._accounts_dir.mkdir(parents=True, exist_ok=True)
+        self._chmod_dir(self._accounts_dir)
+        dest = self._accounts_dir / f"{email}.json"
+        self._atomic_write(dest, creds)
+
+        # Remove old file.
+        try:
+            self.path.unlink()
+        except FileNotFoundError:
+            pass
+        log.info("Migrated legacy tokens.json → accounts/%s.json", email)
+
+    @staticmethod
+    def _resolve_email(creds: Credentials) -> str | None:
+        """Best-effort email resolution via Gmail getProfile."""
+        try:
+            from googleapiclient.discovery import build
+            service = build("gmail", "v1", credentials=creds, cache_discovery=False)
+            profile = service.users().getProfile(userId="me").execute()
+            return profile.get("emailAddress")
+        except Exception:
+            return None
+
+    # ================================================================
+    # Internals
+    # ================================================================
+
+    @staticmethod
+    def _read_creds(path: Path) -> Credentials | None:
+        """Read a single credentials JSON file.  Returns None if missing."""
+        if not path.exists():
+            return None
+        with path.open("r", encoding="utf-8") as f:
+            info = json.load(f)
+        return Credentials.from_authorized_user_info(info)
+
+    def _atomic_write(self, dest: Path, creds: Credentials) -> None:
+        """Atomic write to *dest* with 0o600 perms."""
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        self._chmod_dir(dest.parent)
+
+        payload = self._serialize(creds)
+
+        fd, tmp_path = tempfile.mkstemp(
+            prefix=".tokens.", suffix=".tmp", dir=str(dest.parent)
+        )
+        try:
+            os.fchmod(fd, _FILE_MODE)
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2, sort_keys=True)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, dest)
+        except BaseException:
+            try:
+                os.unlink(tmp_path)
+            except FileNotFoundError:
+                pass
+            raise
+        try:
+            os.chmod(dest, _FILE_MODE)
+        except (OSError, NotImplementedError):  # pragma: no cover
+            pass
+
+    @staticmethod
+    def _chmod_dir(d: Path) -> None:
+        try:
+            os.chmod(d, _DIR_MODE)
+        except (OSError, NotImplementedError):  # pragma: no cover
+            pass
 
     @staticmethod
     def _serialize(creds: Credentials) -> dict:

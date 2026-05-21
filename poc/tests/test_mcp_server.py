@@ -118,25 +118,45 @@ def _make_creds_mock(email: str = "test@gmail.com"):
 class TestCheckAuth:
 
     def test_no_tokens(self):
-        """TokenStore returns None -> message says 'Not authenticated'."""
+        """TokenStore returns no accounts -> message says 'Not authenticated'."""
         with patch("pi_email.mcp_server.TokenStore") as MockStore:
-            MockStore.return_value.load.return_value = None
+            MockStore.return_value.load_all.return_value = {}
             result = check_auth()
             assert "Not authenticated" in result
             assert "deep-email auth" in result
 
     def test_valid_tokens(self):
-        """TokenStore returns valid creds -> 'Authenticated as <email>'."""
+        """TokenStore returns valid creds -> 'Authenticated accounts' with email."""
         creds = _make_creds_mock()
         with (
             patch("pi_email.mcp_server.TokenStore") as MockStore,
             patch("pi_email.mcp_server.refresh_if_needed") as mock_refresh,
-            patch("pi_email.mcp_server._get_email_from_creds", return_value="user@gmail.com"),
+            patch("pi_email.mcp_server._get_message_count", return_value=1000),
         ):
-            MockStore.return_value.load.return_value = creds
+            MockStore.return_value.load_all.return_value = {"user@gmail.com": creds}
             mock_refresh.return_value = creds
             result = check_auth()
-            assert "Authenticated as user@gmail.com" in result
+            assert "user@gmail.com" in result
+            assert "Authenticated accounts" in result
+
+    def test_multi_account(self):
+        """Multiple accounts -> lists all of them."""
+        creds1 = _make_creds_mock()
+        creds2 = _make_creds_mock()
+        with (
+            patch("pi_email.mcp_server.TokenStore") as MockStore,
+            patch("pi_email.mcp_server.refresh_if_needed") as mock_refresh,
+            patch("pi_email.mcp_server._get_message_count", return_value=500),
+        ):
+            MockStore.return_value.load_all.return_value = {
+                "work@example.com": creds1,
+                "personal@gmail.com": creds2,
+            }
+            mock_refresh.side_effect = lambda c: c
+            result = check_auth()
+            assert "work@example.com" in result
+            assert "personal@gmail.com" in result
+            assert "Authenticated accounts (2)" in result
 
     def test_expired_tokens_refresh_fails(self):
         """Tokens exist but refresh fails -> message about re-auth."""
@@ -146,9 +166,9 @@ class TestCheckAuth:
             patch("pi_email.mcp_server.TokenStore") as MockStore,
             patch("pi_email.mcp_server.refresh_if_needed", side_effect=RuntimeError("bad")),
         ):
-            MockStore.return_value.load.return_value = creds
+            MockStore.return_value.load_all.return_value = {"user@gmail.com": creds}
             result = check_auth()
-            assert "expired" in result.lower() or "could not be refreshed" in result.lower()
+            assert "expired" in result.lower()
             assert "deep-email auth" in result
 
 
@@ -251,7 +271,7 @@ class TestBuildProfile:
     def test_no_auth(self):
         """No tokens -> returns auth instructions instead of running."""
         with patch("pi_email.mcp_server.TokenStore") as MockStore:
-            MockStore.return_value.load.return_value = None
+            MockStore.return_value.load_all.return_value = {}
             result = build_profile("figure out my family")
             assert "Not authenticated" in result
             assert "deep-email auth" in result
@@ -263,7 +283,7 @@ class TestBuildProfile:
             patch("pi_email.mcp_server.TokenStore") as MockStore,
             patch("pi_email.mcp_server.refresh_if_needed", side_effect=RuntimeError("expired")),
         ):
-            MockStore.return_value.load.return_value = creds
+            MockStore.return_value.load_all.return_value = {"user@gmail.com": creds}
             result = build_profile("figure out my family")
             assert "expired" in result.lower() or "could not be refreshed" in result.lower()
 
@@ -279,7 +299,7 @@ class TestBuildProfile:
             patch("pi_email.mcp_server._read_build_status", return_value=None),
             patch("pi_email.mcp_server.subprocess.Popen") as mock_popen,
         ):
-            MockStore.return_value.load.return_value = creds
+            MockStore.return_value.load_all.return_value = {"user@gmail.com": creds}
             result = build_profile("figure out my family")
 
             # Verify Popen was called
@@ -313,7 +333,7 @@ class TestBuildProfile:
             patch("pi_email.mcp_server.TokenStore") as MockStore,
             patch("pi_email.mcp_server._read_build_status", return_value=running_status),
         ):
-            MockStore.return_value.load.return_value = creds
+            MockStore.return_value.load_all.return_value = {"user@gmail.com": creds}
             result = build_profile("figure out my family")
             assert "already running" in result.lower()
             assert "build_status" in result
@@ -828,7 +848,7 @@ class TestBuildProfileSkipJudge:
         ):
             # Ensure ANTHROPIC_API_KEY is NOT set
             os.environ.pop("ANTHROPIC_API_KEY", None)
-            MockStore.return_value.load.return_value = creds
+            MockStore.return_value.load_all.return_value = {"user@gmail.com": creds}
             result = build_profile("figure out my family")
 
             mock_popen.assert_called_once()
@@ -850,7 +870,7 @@ class TestBuildProfileSkipJudge:
             patch("pi_email.mcp_server.subprocess.Popen") as mock_popen,
             patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-ant-test123"}),
         ):
-            MockStore.return_value.load.return_value = creds
+            MockStore.return_value.load_all.return_value = {"user@gmail.com": creds}
             result = build_profile("figure out my family")
 
             mock_popen.assert_called_once()
@@ -1097,6 +1117,7 @@ class TestSearchEmails:
         mock_msg1.subject = "Spring enrollment for Vitus"
         mock_msg1.body_clean = "Dear parents, we're pleased to confirm enrollment."
         mock_msg1.body = "Dear parents, we're pleased to confirm enrollment."
+        mock_msg1.message_id = "msg-001"
 
         mock_msg2 = MagicMock()
         mock_msg2.from_addr = "bob@example.com"
@@ -1104,6 +1125,7 @@ class TestSearchEmails:
         mock_msg2.subject = "Report card"
         mock_msg2.body_clean = "Vitus continues to show strong growth."
         mock_msg2.body = "Vitus continues to show strong growth."
+        mock_msg2.message_id = "msg-002"
 
         mock_batch = MagicMock()
         mock_batch.hits = [mock_msg1, mock_msg2]
@@ -1114,7 +1136,7 @@ class TestSearchEmails:
             patch("pi_email.mcp_server.refresh_if_needed"),
             patch("pi_email.gmail_searcher.GmailSearcher") as MockSearcher,
         ):
-            MockStore.return_value.load.return_value = creds
+            MockStore.return_value.load_all.return_value = {"user@gmail.com": creds}
             MockSearcher.return_value.search_and_fetch.return_value = mock_batch
 
             result = search_emails("from:school", 20)
@@ -1139,7 +1161,7 @@ class TestSearchEmails:
             patch("pi_email.mcp_server.refresh_if_needed"),
             patch("pi_email.gmail_searcher.GmailSearcher") as MockSearcher,
         ):
-            MockStore.return_value.load.return_value = creds
+            MockStore.return_value.load_all.return_value = {"user@gmail.com": creds}
             MockSearcher.return_value.search_and_fetch.return_value = mock_batch
 
             search_emails("test query", 100)
@@ -1152,7 +1174,7 @@ class TestSearchEmails:
     def test_search_emails_no_auth(self):
         """No tokens -> auth instructions."""
         with patch("pi_email.mcp_server.TokenStore") as MockStore:
-            MockStore.return_value.load.return_value = None
+            MockStore.return_value.load_all.return_value = {}
             result = search_emails("test query")
             assert "Not authenticated" in result
             assert "deep-email auth" in result
@@ -1170,11 +1192,69 @@ class TestSearchEmails:
             patch("pi_email.mcp_server.refresh_if_needed"),
             patch("pi_email.gmail_searcher.GmailSearcher") as MockSearcher,
         ):
-            MockStore.return_value.load.return_value = creds
+            MockStore.return_value.load_all.return_value = {"user@gmail.com": creds}
             MockSearcher.return_value.search_and_fetch.return_value = mock_batch
 
             result = search_emails("nonexistent query")
             assert "No results found" in result
+
+    def test_search_emails_multi_account(self):
+        """Two accounts -> results tagged with account labels."""
+        creds1 = _make_creds_mock()
+        creds2 = _make_creds_mock()
+
+        mock_msg1 = MagicMock()
+        mock_msg1.from_addr = "investor@vc.com"
+        mock_msg1.date = "2026-03-15"
+        mock_msg1.subject = "Term sheet"
+        mock_msg1.body_clean = "Attached is the term sheet."
+        mock_msg1.body = "Attached is the term sheet."
+        mock_msg1.message_id = "msg-work-1"
+
+        mock_msg2 = MagicMock()
+        mock_msg2.from_addr = "mom@gmail.com"
+        mock_msg2.date = "2026-03-14"
+        mock_msg2.subject = "Dinner Sunday?"
+        mock_msg2.body_clean = "Are you coming for dinner?"
+        mock_msg2.body = "Are you coming for dinner?"
+        mock_msg2.message_id = "msg-personal-1"
+
+        mock_batch1 = MagicMock()
+        mock_batch1.hits = [mock_msg1]
+        mock_batch1.truncated = False
+
+        mock_batch2 = MagicMock()
+        mock_batch2.hits = [mock_msg2]
+        mock_batch2.truncated = False
+
+        call_count = [0]
+
+        def searcher_side_effect(*args, **kwargs):
+            mock = MagicMock()
+            if call_count[0] == 0:
+                mock.search_and_fetch.return_value = mock_batch1
+            else:
+                mock.search_and_fetch.return_value = mock_batch2
+            call_count[0] += 1
+            return mock
+
+        with (
+            patch("pi_email.mcp_server.TokenStore") as MockStore,
+            patch("pi_email.mcp_server.refresh_if_needed"),
+            patch("pi_email.gmail_searcher.GmailSearcher", side_effect=searcher_side_effect),
+        ):
+            MockStore.return_value.load_all.return_value = {
+                "work@example.com": creds1,
+                "personal@gmail.com": creds2,
+            }
+
+            result = search_emails("family", 20)
+
+            assert "2 result(s)" in result
+            assert "[work]" in result
+            assert "[personal]" in result
+            assert "investor@vc.com" in result
+            assert "mom@gmail.com" in result
 
 
 # ====================================================================
@@ -1203,7 +1283,7 @@ class TestReadEmail:
             patch("pi_email.mcp_server.refresh_if_needed"),
             patch("pi_email.gmail_searcher.GmailSearcher") as MockSearcher,
         ):
-            MockStore.return_value.load.return_value = creds
+            MockStore.return_value.load_all.return_value = {"user@gmail.com": creds}
             MockSearcher.return_value.fetch.return_value = mock_msg
 
             result = read_email("19abc123def")
@@ -1218,7 +1298,7 @@ class TestReadEmail:
             assert "Thread ID: 19abc123000" in result
 
     def test_read_email_not_found(self):
-        """fetch raises 404-like error -> 'Message not found'."""
+        """fetch raises 404-like error for all accounts -> 'Message not found'."""
         creds = _make_creds_mock()
 
         with (
@@ -1226,7 +1306,7 @@ class TestReadEmail:
             patch("pi_email.mcp_server.refresh_if_needed"),
             patch("pi_email.gmail_searcher.GmailSearcher") as MockSearcher,
         ):
-            MockStore.return_value.load.return_value = creds
+            MockStore.return_value.load_all.return_value = {"user@gmail.com": creds}
             MockSearcher.return_value.fetch.side_effect = RuntimeError(
                 "HttpError 404: Requested entity was not found."
             )
@@ -1237,7 +1317,7 @@ class TestReadEmail:
     def test_read_email_no_auth(self):
         """No tokens -> auth instructions."""
         with patch("pi_email.mcp_server.TokenStore") as MockStore:
-            MockStore.return_value.load.return_value = None
+            MockStore.return_value.load_all.return_value = {}
             result = read_email("some_id")
             assert "Not authenticated" in result
             assert "deep-email auth" in result
@@ -1263,7 +1343,7 @@ class TestReadEmail:
             patch("pi_email.mcp_server.refresh_if_needed"),
             patch("pi_email.gmail_searcher.GmailSearcher") as MockSearcher,
         ):
-            MockStore.return_value.load.return_value = creds
+            MockStore.return_value.load_all.return_value = {"user@gmail.com": creds}
             MockSearcher.return_value.fetch.return_value = mock_msg
 
             result = read_email("msg_long")
@@ -1273,3 +1353,46 @@ class TestReadEmail:
             # The body should be capped — 10000 x's, not 15000
             assert "x" * 10_000 in result
             assert "x" * 10_001 not in result
+
+    def test_read_email_tries_all_accounts(self):
+        """Message not in first account, found in second."""
+        creds1 = _make_creds_mock()
+        creds2 = _make_creds_mock()
+
+        mock_msg = MagicMock()
+        mock_msg.from_addr = "someone@example.com"
+        mock_msg.to_addr = "user@example.com"
+        mock_msg.date = "2026-01-01"
+        mock_msg.subject = "Found it"
+        mock_msg.body_clean = "This is the email."
+        mock_msg.body = "This is the email."
+        mock_msg.message_id = "target-msg"
+        mock_msg.thread_id = "target-thread"
+
+        call_count = [0]
+
+        def searcher_side_effect(*args, **kwargs):
+            mock = MagicMock()
+            if call_count[0] == 0:
+                # First account: not found.
+                mock.fetch.side_effect = RuntimeError("HttpError 404: not found")
+            else:
+                # Second account: found!
+                mock.fetch.return_value = mock_msg
+            call_count[0] += 1
+            return mock
+
+        with (
+            patch("pi_email.mcp_server.TokenStore") as MockStore,
+            patch("pi_email.mcp_server.refresh_if_needed"),
+            patch("pi_email.gmail_searcher.GmailSearcher", side_effect=searcher_side_effect),
+        ):
+            MockStore.return_value.load_all.return_value = {
+                "work@example.com": creds1,
+                "personal@gmail.com": creds2,
+            }
+
+            result = read_email("target-msg")
+
+            assert "Found it" in result
+            assert "Message ID: target-msg" in result

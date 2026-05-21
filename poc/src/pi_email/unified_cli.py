@@ -94,20 +94,108 @@ def _start_mcp_server() -> None:
     is_flag=True,
     help="Force re-consent to pick up new OAuth scopes.",
 )
+@click.option(
+    "--remove",
+    "remove_account",
+    default=None,
+    help="Remove an account's credentials (pass email address).",
+)
 @click.pass_context
-def auth(ctx: click.Context, force: bool, refresh_auth: bool) -> None:
-    """Run the Google OAuth flow and persist tokens."""
-    from pi_email.cli import auth as _auth_cmd, main as _cli_main
+def auth(ctx: click.Context, force: bool, refresh_auth: bool, remove_account: str | None) -> None:
+    """Authenticate a Google account (can be run multiple times for multi-account)."""
+    from pi_email.token_store import TokenStore
 
-    # Invoke the old CLI's auth command directly via Click's context
-    # machinery. This avoids click.testing.CliRunner which requires an
-    # explicit `import click.testing` and behaves differently in
-    # production vs test environments.
-    sub_ctx = click.Context(_cli_main, info_name="deep-email")
-    sub_ctx.ensure_object(dict)
-    sub_ctx.obj["verbose"] = ctx.obj.get("verbose", False)
-    with sub_ctx:
-        sub_ctx.invoke(_auth_cmd, force=force, refresh_auth=refresh_auth)
+    if remove_account:
+        store = TokenStore()
+        if store.remove(remove_account):
+            click.echo(f"Removed credentials for {remove_account}")
+        else:
+            click.echo(f"No credentials found for {remove_account}")
+        return
+
+    from pi_email.oauth import OAuthConfig, acquire_credentials, refresh_if_needed
+
+    try:
+        config = OAuthConfig.from_env()
+    except RuntimeError as exc:
+        click.echo(str(exc), err=True)
+        raise SystemExit(2)
+
+    store = TokenStore()
+
+    if not force and not refresh_auth:
+        # In multi-account mode, we always allow adding new accounts.
+        # Only skip the flow if we detect the SAME account trying to re-auth.
+        pass  # Fall through to the consent flow.
+
+    click.echo("Opening browser for Google consent...", err=True)
+    try:
+        creds = acquire_credentials(config, open_browser=True)
+    except Exception as exc:
+        click.echo(f"OAuth flow failed: {exc}", err=True)
+        raise SystemExit(2)
+
+    # Determine the email for this account.
+    email = _resolve_email_from_creds(creds)
+    if not email:
+        click.echo("Could not determine email address from credentials.", err=True)
+        raise SystemExit(2)
+
+    try:
+        store.save(creds, email=email)
+    except Exception as exc:
+        click.echo(f"Could not persist token: {exc}", err=True)
+        raise SystemExit(2)
+
+    click.echo(f"Authenticated as {email}")
+
+
+def _resolve_email_from_creds(creds) -> str | None:
+    """Resolve the email address for freshly acquired credentials."""
+    try:
+        from googleapiclient.discovery import build
+        service = build("gmail", "v1", credentials=creds, cache_discovery=False)
+        profile = service.users().getProfile(userId="me").execute()
+        return profile.get("emailAddress")
+    except Exception:
+        return None
+
+
+# ---- accounts ----
+
+
+@cli.command()
+def accounts() -> None:
+    """List all authenticated Gmail accounts."""
+    from pi_email.token_store import TokenStore
+    from pi_email.oauth import refresh_if_needed
+
+    store = TokenStore()
+    account_list = store.list_accounts()
+
+    if not account_list:
+        click.echo("No authenticated accounts. Run: deep-email auth")
+        raise SystemExit(1)
+
+    click.echo("Authenticated accounts:")
+    for i, email in enumerate(account_list, 1):
+        creds = store.load(email)
+        status = ""
+        if creds:
+            try:
+                refresh_if_needed(creds)
+                # Try to get message count.
+                try:
+                    from googleapiclient.discovery import build
+                    service = build("gmail", "v1", credentials=creds, cache_discovery=False)
+                    profile = service.users().getProfile(userId="me").execute()
+                    msg_count = profile.get("messagesTotal", 0)
+                    status = f" ({msg_count:,} messages)"
+                except Exception:
+                    status = ""
+            except Exception:
+                status = " (token expired)"
+        click.echo(f"  {i}. {email}{status}")
 
 
 # ---- whoami ----
@@ -119,26 +207,30 @@ def whoami() -> None:
     from pi_email.token_store import TokenStore
     from pi_email.oauth import refresh_if_needed
 
-    creds = TokenStore().load()
-    if not creds:
-        click.echo("Not authenticated. Run: deep-email auth")
-        raise SystemExit(1)
+    store = TokenStore()
+    all_accounts = store.load_all()
 
-    try:
-        creds = refresh_if_needed(creds)
-    except Exception as e:
-        click.echo(f"Token expired or invalid: {e}")
-        click.echo("Run: deep-email auth")
+    if not all_accounts:
+        click.echo("Not authenticated. Run: deep-email auth")
         raise SystemExit(1)
 
     from googleapiclient.discovery import build
 
-    service = build("gmail", "v1", credentials=creds, cache_discovery=False)
-    profile = service.users().getProfile(userId="me").execute()
+    for email, creds in all_accounts.items():
+        try:
+            creds = refresh_if_needed(creds)
+        except Exception as e:
+            click.echo(f"[{email}] Token expired or invalid: {e}")
+            continue
 
-    click.echo(f"email:           {profile.get('emailAddress', 'unknown')}")
-    click.echo(f"messages_total:  {profile.get('messagesTotal', 'unknown')}")
-    click.echo(f"threads_total:   {profile.get('threadsTotal', 'unknown')}")
+        service = build("gmail", "v1", credentials=creds, cache_discovery=False)
+        profile = service.users().getProfile(userId="me").execute()
+
+        click.echo(f"email:           {profile.get('emailAddress', 'unknown')}")
+        click.echo(f"messages_total:  {profile.get('messagesTotal', 'unknown')}")
+        click.echo(f"threads_total:   {profile.get('threadsTotal', 'unknown')}")
+        if len(all_accounts) > 1:
+            click.echo("---")
 
 
 # ---- query ----
@@ -290,9 +382,12 @@ def setup() -> None:
     click.echo("\nStep 2: Gmail authentication")
     from pi_email.token_store import TokenStore
 
-    creds = TokenStore().load()
-    if creds and not creds.expired:
-        click.echo("  [ok] Already authenticated")
+    store = TokenStore()
+    existing_accounts = store.list_accounts()
+    if existing_accounts:
+        click.echo(f"  [ok] Already authenticated ({len(existing_accounts)} account(s))")
+        for acct in existing_accounts:
+            click.echo(f"       - {acct}")
     else:
         if click.confirm("  Open browser for Google consent?", default=True):
             from pi_email.oauth import OAuthConfig, acquire_credentials
@@ -300,8 +395,12 @@ def setup() -> None:
             try:
                 config = OAuthConfig.from_env()
                 creds = acquire_credentials(config)
-                TokenStore().save(creds)
-                click.echo("  [ok] Authenticated")
+                email = _resolve_email_from_creds(creds)
+                if email:
+                    store.save(creds, email=email)
+                    click.echo(f"  [ok] Authenticated as {email}")
+                else:
+                    click.echo("  [!!] Could not determine email address.")
             except Exception as exc:
                 click.echo(f"  [!!] Authentication failed: {exc}")
                 click.echo("  Run 'deep-email auth' later to retry.")
