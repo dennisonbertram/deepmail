@@ -44,3 +44,6 @@ dist/
 
 # User-specific Claude Code settings
 .claude/settings.local.json
+
+# Website
+website/node_modules/

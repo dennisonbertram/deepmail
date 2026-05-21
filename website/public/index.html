@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Deepmail &mdash; persistent email understanding for AI agents</title>
+  <meta name="description" content="Deepmail gives AI agents persistent email understanding. 10 MCP tools to investigate, analyze, and remember.">
+
+  <!-- Fonts: Geist + Geist Mono from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@350;400;450;500;600;700&family=Geist+Mono:wght@400;450&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Nav — N9 Edge-aligned minimal -->
+  <nav class="nav" aria-label="Primary">
+    <a href="/" class="nav__wordmark">Deepmail</a>
+    <a href="https://github.com/dennisonbertram/deepmail" class="nav__link" rel="noopener">GitHub</a>
+  </nav>
+
+  <main class="page">
+
+    <!-- Hero -->
+    <section class="section section--hero">
+      <h1 class="hero__display">Your agent can search your email. It can&rsquo;t understand&nbsp;it.</h1>
+      <p class="hero__lede">Deepmail gives AI agents persistent email understanding. 10 MCP tools to investigate, cross-reference, and remember&mdash;across sessions.</p>
+      <div class="hero__install">
+        <button class="code-block" onclick="copyInstall(this)" aria-label="Copy install command">
+          <span class="code-block__prompt">$</span>
+          <code>pip install deep-email</code>
+          <span class="code-block__copy">copy</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- The problem -->
+    <section class="section">
+      <h2 class="section__heading">Every agent session starts from zero.</h2>
+      <p class="section__body">Gmail MCP servers let agents read individual messages. But understanding&mdash;knowing who matters, what relationships exist, what&rsquo;s happening&mdash;requires investigation, cross-referencing, and memory.</p>
+      <p class="section__body">Agents can&rsquo;t do that in a single search.</p>
+    </section>
+
+    <!-- What your agent gets -->
+    <section class="section">
+      <h2 class="section__heading">What your agent gets</h2>
+      <ul class="tool-list" role="list">
+        <li class="tool-list__item">
+          <span class="tool-list__name">search_emails</span>
+          <span class="tool-list__desc">Search Gmail by any query</span>
+        </li>
+        <li class="tool-list__item">
+          <span class="tool-list__name">read_email</span>
+          <span class="tool-list__desc">Read the full body of a message</span>
+        </li>
+        <li class="tool-list__item">
+          <span class="tool-list__name">build_profile</span>
+          <span class="tool-list__desc">Deep investigation&mdash;extract people and context from Gmail</span>
+        </li>
+        <li class="tool-list__item">
+          <span class="tool-list__name">build_status</span>
+          <span class="tool-list__desc">Check progress of a running investigation</span>
+        </li>
+        <li class="tool-list__item">
+          <span class="tool-list__name">who_is</span>
+          <span class="tool-list__desc">Look up a person from cached knowledge</span>
+        </li>
+        <li class="tool-list__item">
+          <span class="tool-list__name">about_me</span>
+          <span class="tool-list__desc">What the agent knows about you</span>
+        </li>
+        <li class="tool-list__item">
+          <span class="tool-list__name">get_candidates</span>
+          <span class="tool-list__desc">Review structured results from the latest build</span>
+        </li>
+        <li class="tool-list__item">
+          <span class="tool-list__name">profile_health</span>
+          <span class="tool-list__desc">Check freshness and coverage of cached profiles</span>
+        </li>
+        <li class="tool-list__item">
+          <span class="tool-list__name">reset_profile</span>
+          <span class="tool-list__desc">Wipe generated data and start fresh</span>
+        </li>
+        <li class="tool-list__item">
+          <span class="tool-list__name">check_auth</span>
+          <span class="tool-list__desc">Verify Gmail authentication status</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- How it works -->
+    <section class="section">
+      <h2 class="section__heading">How it works</h2>
+      <div class="steps">
+        <div class="step">
+          <span class="step__number">1</span>
+          <div>
+            <p class="step__title">Install</p>
+            <code class="step__code">pip install deep-email</code>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step__number">2</span>
+          <div>
+            <p class="step__title">Authenticate</p>
+            <code class="step__code">deep-email auth</code>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step__number">3</span>
+          <div>
+            <p class="step__title">Your agent knows you</p>
+            <p class="step__detail">The skill tells your agent what tools are available and when to use them. No configuration needed.</p>
+          </div>
+        </div>
+      </div>
+      <p class="step__compat">Works with Claude Code, Cursor, Codex, GitHub Copilot, Windsurf, Gemini CLI, and 40+ other MCP-compatible agents.</p>
+    </section>
+
+    <!-- Example -->
+    <section class="section">
+      <h2 class="section__heading">Example</h2>
+      <div class="example">
+        <p class="example__prompt">&ldquo;Find all my investors.&rdquo;</p>
+        <ul class="example__steps" role="list">
+          <li class="example__step">Agent searches for term sheets, fund communications, board emails</li>
+          <li class="example__step">Follows leads&mdash;reads specific messages, cross-references names</li>
+          <li class="example__step">Builds a complete investor table across 3 funding rounds</li>
+        </ul>
+        <p class="example__result">Next session: already knows. No re-searching.</p>
+      </div>
+    </section>
+
+    <!-- Install -->
+    <section class="section section--install">
+      <h2 class="section__heading">Get started</h2>
+      <div class="install-block">
+        <span class="install-block__line"><span class="install-block__prompt">$ </span>pip install deep-email</span>
+        <span class="install-block__line"><span class="install-block__prompt">$ </span>deep-email auth</span>
+        <span class="install-block__line"><span class="install-block__prompt">$ </span>npx skills add dennisonbertram/deepmail</span>
+      </div>
+      <a href="https://github.com/dennisonbertram/deepmail" class="cta-link" rel="noopener">View on GitHub &rarr;</a>
+    </section>
+
+  </main>
+
+  <!-- Footer — Ft2 Inline single line -->
+  <footer class="footer">
+    <div class="footer__inner">
+      <span>Deepmail</span>
+      <span class="footer__sep">&middot;</span>
+      <span>AGPL-3.0</span>
+      <span class="footer__sep">&middot;</span>
+      <a href="https://github.com/dennisonbertram/deepmail/blob/main/PRIVACY.md" class="footer__link" rel="noopener">Privacy</a>
+      <span class="footer__sep">&middot;</span>
+      <a href="https://github.com/dennisonbertram/deepmail/blob/main/TERMS.md" class="footer__link" rel="noopener">Terms</a>
+      <span class="footer__sep">&middot;</span>
+      <a href="https://github.com/dennisonbertram/deepmail" class="footer__link" rel="noopener">GitHub</a>
+    </div>
+  </footer>
+
+  <script>
+    function copyInstall(el) {
+      var text = 'pip install deep-email';
+      navigator.clipboard.writeText(text).then(function () {
+        el.classList.add('code-block--copied');
+        var copySpan = el.querySelector('.code-block__copy');
+        copySpan.textContent = 'copied';
+        setTimeout(function () {
+          el.classList.remove('code-block--copied');
+          copySpan.textContent = 'copy';
+        }, 2000);
+      });
+    }
+  </script>
+
+</body>
+</html>
