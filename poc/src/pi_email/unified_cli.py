@@ -44,7 +44,7 @@ def _load_dotenv_quietly() -> None:
         "Use 'deep-email setup' for first-time configuration."
     ),
 )
-@click.version_option("0.2.0", prog_name="deep-email")
+@click.version_option("0.3.0", prog_name="deep-email")
 @click.option(
     "-v",
     "--verbose",
@@ -351,32 +351,14 @@ def setup() -> None:
     """Interactive setup wizard -- credentials, auth, and agent config."""
     click.echo("Welcome to Deep Email!\n")
 
-    # Step 1: Check GOOGLE_CLIENT_ID
+    # Step 1: Credentials
     click.echo("Step 1: Google Cloud credentials")
-    client_id = os.environ.get("GOOGLE_CLIENT_ID")
-    if client_id:
-        click.echo(f"  [ok] GOOGLE_CLIENT_ID found (length={len(client_id)})")
+    custom_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+    if custom_id:
+        click.echo(f"  [ok] Using custom GOOGLE_CLIENT_ID from env (length={len(custom_id)})")
     else:
-        click.echo("  [!!] GOOGLE_CLIENT_ID not set")
-        click.echo("  You need a Google Cloud OAuth client ID.")
-        click.echo("  See: https://github.com/user/deep-email#google-cloud-setup")
-        click.echo("")
-        client_id = click.prompt(
-            "  Paste your Client ID (or press Enter to skip)",
-            default="",
-            show_default=False,
-        )
-        if client_id:
-            click.echo(f"\n  Add this to your shell config (~/.zshrc):")
-            click.echo(f'  export GOOGLE_CLIENT_ID="{client_id}"')
-            click.echo(f"\n  Or create a .env file:")
-            click.echo(f"  echo 'GOOGLE_CLIENT_ID={client_id}' > .env")
-            os.environ["GOOGLE_CLIENT_ID"] = client_id  # set for this session
-        else:
-            click.echo(
-                "  Skipping -- set GOOGLE_CLIENT_ID before running 'deep-email auth'"
-            )
-            return
+        click.echo("  [ok] Using built-in Deepmail credentials")
+        click.echo("  (Set GOOGLE_CLIENT_ID in env to use your own)")
 
     # Step 2: Authenticate
     click.echo("\nStep 2: Gmail authentication")

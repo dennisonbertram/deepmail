@@ -19,16 +19,17 @@ Agent builds a complete investor table — firms, key contacts, amounts, dates.
 Next session, your agent already knows. No re-searching.
 ```
 
-## Install
+## Quick start
 
 ```bash
 pip install deep-email
+deep-email auth
 ```
 
-Or run directly:
-```bash
-uvx deep-email setup
-```
+Opens your browser for Google consent. Read-only access. Done.
+
+> You may see "This app isn't verified" — click **Advanced** → **Go to Deepmail (unsafe)**.
+> This is standard for open-source tools. Deepmail only requests read-only email access.
 
 ### Configure your agent
 
@@ -58,12 +59,10 @@ npx skills add dennisonbertram/deepmail
 
 Works with Claude Code, Cursor, Codex, GitHub Copilot, Windsurf, Gemini CLI, and 40+ other agents.
 
-## Google Cloud Setup
-
-Deepmail needs read-only access to your Gmail. You'll need a Google Cloud project with OAuth credentials (~10 min, one-time).
-
 <details>
-<summary><strong>Step-by-step setup</strong></summary>
+<summary><strong>Advanced: Use your own Google Cloud credentials</strong></summary>
+
+By default, Deepmail uses built-in OAuth credentials. If you prefer to use your own GCP project:
 
 ### 1. Create a Google Cloud Project
 - Go to [Google Cloud Console](https://console.cloud.google.com/)
@@ -85,24 +84,17 @@ Deepmail needs read-only access to your Gmail. You'll need a Google Cloud projec
 ### 4. Create Credentials
 - Go to [Credentials](https://console.cloud.google.com/apis/credentials)
 - **Create Credentials** → **OAuth client ID** → **Desktop app** → **Create**
-- Copy the **Client ID**
+- Copy the **Client ID** and **Client Secret**
 
-### 5. Set the credential
+### 5. Set the credentials
 ```bash
 export GOOGLE_CLIENT_ID="your-id.apps.googleusercontent.com"
+export GOOGLE_CLIENT_SECRET="your-secret"
 ```
 
-Or add to `~/.zshrc` / `~/.bashrc` for persistence.
+Or add to `~/.zshrc` / `~/.bashrc` for persistence. Then run `deep-email auth`.
 
 </details>
-
-### Authenticate
-
-```bash
-deep-email auth
-```
-
-Opens your browser for Google consent. One-time setup. Read-only access — Deepmail never sends, modifies, or deletes email.
 
 ## Tools
 

@@ -1,15 +1,13 @@
 """OAuth configuration + installed-app credential acquisition for Gmail.
 
-We mirror the credential setup used by the parent pi-google project: a Desktop-app
-GCP OAuth client, PKCE S256, loopback redirect. The same GCP client app is shared
-across projects via env vars; tokens live separately per-project (see token_store).
+Desktop-app OAuth credentials are embedded so users can authenticate with zero
+GCP setup: just run ``deep-email auth``. Users who want their own GCP project
+can override via the ``GOOGLE_CLIENT_ID`` / ``GOOGLE_CLIENT_SECRET`` env vars.
 
-Required env vars (loaded from .env via python-dotenv if available):
-  GOOGLE_CLIENT_ID       — required. Desktop-app client ID.
-  GOOGLE_CLIENT_SECRET   — optional. Desktop-app "secret" is not truly secret
-                           under PKCE, but Google's installed-app schema still
-                           accepts it; google-auth-oauthlib will round-trip it
-                           via Credentials.
+Embedded credentials for Desktop OAuth apps are NOT secrets — Google's own
+documentation states that "the client_secret is not actually expected to be
+secret" for installed apps. rclone, Thunderbird, and many other open-source
+tools follow the same pattern.
 
 This module does NOT touch token storage — that's token_store.py — and it does
 NOT implement Gmail API calls. It's the auth seam only.
@@ -59,6 +57,18 @@ DEFAULT_SCOPES: list[str] = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Embedded OAuth credentials for the Deepmail Desktop app.
+# These are NOT secrets — Desktop app client IDs/secrets are public by design.
+# Google's docs: "the client_secret is not actually expected to be secret"
+# for installed (Desktop) apps. Users can override with GOOGLE_CLIENT_ID env.
+# ---------------------------------------------------------------------------
+_DEFAULT_CLIENT_ID = (
+    "980776582301-0d5qk6o5mg8l31f85ru1f8uahffo9tg1.apps.googleusercontent.com"
+)
+_DEFAULT_CLIENT_SECRET = "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"
+
+
 # Google's published endpoints — hardcoded so we don't depend on a
 # discovery document just to start the flow.
 _AUTH_URI = "https://accounts.google.com/o/oauth2/auth"
@@ -81,11 +91,14 @@ class OAuthConfig:
 
     @classmethod
     def from_env(cls, scopes: list[str] | None = None) -> "OAuthConfig":
-        """Read GOOGLE_CLIENT_ID (required) and GOOGLE_CLIENT_SECRET (optional).
+        """Read GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET from env, falling back
+        to the embedded Deepmail Desktop app credentials.
 
         Loads .env via python-dotenv if installed and present. .env is searched
         from the current working directory upward — the standard dotenv default.
-        Raises RuntimeError with a remediation hint if GOOGLE_CLIENT_ID is unset.
+        If neither the env var nor .env provides a client ID, the built-in
+        Deepmail credentials are used so the user can authenticate with zero
+        GCP setup.
         """
         if (
             _load_dotenv is not None
@@ -100,18 +113,11 @@ class OAuthConfig:
             if path:
                 _load_dotenv(path)
 
-        client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
-        if not client_id:
-            raise RuntimeError(
-                "GOOGLE_CLIENT_ID not set.\n\n"
-                "You need a Google Cloud OAuth client ID to use Deep Email.\n"
-                "Set it in your environment:\n"
-                "  export GOOGLE_CLIENT_ID='your-id.apps.googleusercontent.com'\n\n"
-                "Or run 'deep-email setup' for interactive setup.\n"
-                "See: https://github.com/user/deep-email#google-cloud-setup"
-            )
-
-        client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip() or None
+        client_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip() or _DEFAULT_CLIENT_ID
+        client_secret = (
+            os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+            or _DEFAULT_CLIENT_SECRET
+        )
         return cls(
             client_id=client_id,
             client_secret=client_secret,

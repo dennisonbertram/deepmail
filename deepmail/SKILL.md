@@ -22,7 +22,7 @@ allowed-tools:
   - mcp__deepmail__reset_profile
 metadata:
   author: dennison
-  version: 0.1.0
+  version: 0.3.0
 ---
 
 # Deepmail
@@ -37,33 +37,9 @@ history provides context.
 
 ## Prerequisites
 
-This skill requires the **Deepmail MCP server**. Install it:
-
-```bash
-pip install deep-email
-```
-
-Authenticate with Gmail (one-time):
-
-```bash
-deep-email auth
-```
-
-Configure the MCP server in `.mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "deepmail": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": ["deep-email"]
-    }
-  }
-}
-```
-
-Or run `deep-email init` to write this automatically.
+1. Install: `pip install deep-email` (or `uvx deep-email`)
+2. Authenticate: `deep-email auth` (opens browser for Google consent)
+3. Configure MCP: add to `.mcp.json` or run `deep-email init`
 
 ## Tools
 

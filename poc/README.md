@@ -143,21 +143,11 @@ Start here, in order:
 The fixture corpus is the default; once you've validated the loop's behavior
 against it, point the same pipeline at your live mailbox.
 
-### 1. Provide your OAuth client ID
+### 1. Install and run the consent flow
 
-Copy `GOOGLE_CLIENT_ID` from the parent `pi-google` project (or wherever
-you keep your Desktop-app OAuth client) into `poc/.env`:
-
-```
-GOOGLE_CLIENT_ID=...
-# GOOGLE_CLIENT_SECRET=...  # optional for Desktop apps under PKCE
-```
-
-The same GCP OAuth client app can be shared across projects — only the
-*tokens* are per-project (stored under your OS's user-data directory via
-`platformdirs`, with `0600` perms).
-
-### 2. Install and run the consent flow
+Built-in OAuth credentials are embedded — no GCP setup needed. If you
+prefer your own credentials, set `GOOGLE_CLIENT_ID` and optionally
+`GOOGLE_CLIENT_SECRET` in your environment or a `.env` file.
 
 ```
 cd poc
@@ -169,7 +159,7 @@ pi-email auth
 `gmail.readonly` scope, and saves the resulting access + refresh tokens
 to the platformdirs path it prints. Re-run with `--force` to start over.
 
-### 3. Sanity-check
+### 2. Sanity-check
 
 ```
 pi-email whoami
@@ -184,7 +174,7 @@ batched fetch, and prints `from | date | subject` for each hit.
 The default `--max 50` on `query` keeps your first runs cheap. Raise it once
 you've calibrated against your mailbox.
 
-### 4. First real expansion run
+### 3. First real expansion run
 
 ```
 pi-email run "figure out my family" --source gmail --max-corpus 100

@@ -4,7 +4,7 @@ Covers:
   - deep-email init writes .mcp.json with correct content
   - deep-email init merges into existing .mcp.json
   - deep-email init skips if already configured
-  - Missing GOOGLE_CLIENT_ID error message mentions 'deep-email setup'
+  - Embedded OAuth defaults load when GOOGLE_CLIENT_ID is absent
   - MCP server name is 'deepmail'
 """
 
@@ -101,26 +101,22 @@ class TestDeepmailInit:
 
 
 # ====================================================================
-# Missing GOOGLE_CLIENT_ID error message test
+# Embedded defaults test (no GOOGLE_CLIENT_ID required)
 # ====================================================================
 
 
-class TestMissingClientIdError:
+class TestEmbeddedDefaults:
 
-    def test_missing_client_id_error_message(self):
-        """OAuthConfig.from_env() error mentions 'deep-email setup'."""
-        from pi_email.oauth import OAuthConfig
+    def test_no_env_var_loads_embedded_defaults(self):
+        """OAuthConfig.from_env() returns embedded defaults when GOOGLE_CLIENT_ID is absent."""
+        from pi_email.oauth import OAuthConfig, _DEFAULT_CLIENT_ID
 
         # Clear the env var and prevent dotenv from reloading it
         with patch.dict(os.environ, {}, clear=True), \
              patch("pi_email.oauth._find_dotenv", None), \
              patch("pi_email.oauth._load_dotenv", None):
-            with pytest.raises(RuntimeError) as exc_info:
-                OAuthConfig.from_env()
-
-            msg = str(exc_info.value)
-            assert "deep-email setup" in msg
-            assert "GOOGLE_CLIENT_ID" in msg
+            cfg = OAuthConfig.from_env()
+            assert cfg.client_id == _DEFAULT_CLIENT_ID
 
 
 # ====================================================================

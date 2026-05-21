@@ -20,6 +20,8 @@ from pi_email.oauth import (  # noqa: E402
     DEFAULT_SCOPES,
     GMAIL_READONLY_SCOPE,
     OAuthConfig,
+    _DEFAULT_CLIENT_ID,
+    _DEFAULT_CLIENT_SECRET,
 )
 
 
@@ -36,7 +38,8 @@ def test_from_env_reads_client_id(monkeypatch):
     monkeypatch.setenv("GOOGLE_CLIENT_ID", "my-client-id.apps.googleusercontent.com")
     cfg = OAuthConfig.from_env()
     assert cfg.client_id == "my-client-id.apps.googleusercontent.com"
-    assert cfg.client_secret is None
+    # No GOOGLE_CLIENT_SECRET in env → falls back to the embedded default.
+    assert cfg.client_secret == _DEFAULT_CLIENT_SECRET
     assert cfg.scopes == DEFAULT_SCOPES
 
 
@@ -48,18 +51,21 @@ def test_from_env_reads_client_secret(monkeypatch):
     assert cfg.client_secret == "shhh-not-really-secret"
 
 
-def test_from_env_raises_when_client_id_missing(monkeypatch, tmp_path):
-    # Run from a directory with no .env so dotenv discovery can't find one.
+def test_from_env_falls_back_to_defaults_when_client_id_missing(monkeypatch, tmp_path):
+    """No GOOGLE_CLIENT_ID in env and no .env file → embedded defaults."""
     monkeypatch.chdir(tmp_path)
-    with pytest.raises(RuntimeError, match="GOOGLE_CLIENT_ID"):
-        OAuthConfig.from_env()
+    cfg = OAuthConfig.from_env()
+    assert cfg.client_id == _DEFAULT_CLIENT_ID
+    assert cfg.client_secret == _DEFAULT_CLIENT_SECRET
 
 
-def test_from_env_empty_string_is_missing(monkeypatch, tmp_path):
+def test_from_env_empty_string_falls_back_to_defaults(monkeypatch, tmp_path):
+    """Whitespace-only GOOGLE_CLIENT_ID → treated as absent, use defaults."""
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("GOOGLE_CLIENT_ID", "   ")  # whitespace only
-    with pytest.raises(RuntimeError, match="GOOGLE_CLIENT_ID"):
-        OAuthConfig.from_env()
+    cfg = OAuthConfig.from_env()
+    assert cfg.client_id == _DEFAULT_CLIENT_ID
+    assert cfg.client_secret == _DEFAULT_CLIENT_SECRET
 
 
 def test_from_env_loads_dotenv(monkeypatch, tmp_path):
