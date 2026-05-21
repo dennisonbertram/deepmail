@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "deep-email": {
+      "source": "dennisonbertram/deepmail",
+      "sourceType": "github",
+      "skillPath": "deepmail/SKILL.md",
+      "computedHash": "a0be77af9d00b5a71601142b11e312153b96cf114b5141dd34ad21640929ab75"
+    }
+  }
+}
