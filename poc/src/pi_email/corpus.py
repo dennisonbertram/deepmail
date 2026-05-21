@@ -53,6 +53,10 @@ class Message:
     # `corpus.py` and `calendar_email_parser.py`; downstream callers
     # `cast` / treat each element as `CalendarEmailPerson`.
     calendar_persons: list = field(default_factory=list)
+    # Email address of the Gmail account this message was fetched from.
+    # Set by MultiAccountSearcher when merging results from multiple
+    # accounts. Empty string for single-account / fixture-loaded messages.
+    source_account: str = ""
 
     def all_text(self) -> str:
         """Concatenated headers + body — what searchers grep against."""

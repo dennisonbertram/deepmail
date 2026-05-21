@@ -2563,3 +2563,252 @@ def test_gather_rule_7_co_occurs_with_in_excerpt():
         assert ex["co_occurs_with"] == "Jana Bertram", (
             f"co_occurs_with should be 'Jana Bertram'; got: {ex['co_occurs_with']}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Account-source tagging
+# ---------------------------------------------------------------------------
+
+
+def _msg_with_account(
+    message_id: str,
+    *,
+    from_addr: str = "alice@example.com",
+    subject: str = "test subject",
+    body: str = "body text",
+    source_account: str = "",
+) -> Message:
+    """Like _msg() but with source_account support."""
+    m = Message(
+        message_id=message_id,
+        thread_id=message_id,
+        from_addr=from_addr,
+        to_addr="me@example.com",
+        subject=subject,
+        date="2026-01-01",
+        body=body,
+        source_path=Path("/tmp/fake.md"),
+        source_account=source_account,
+    )
+    m.body_clean = m.body
+    return m
+
+
+def _build_multi_account_corpus() -> tuple[Corpus, set, dict]:
+    """Two people, messages from two different accounts."""
+    corpus = Corpus()
+
+    m1 = _msg_with_account(
+        "m1",
+        from_addr="Aleks Larsen <aleks@example.com>",
+        subject="Term sheet for Series A",
+        body="Aleks Larsen sent the term sheet for Series A funding.",
+        source_account="dennison@withtally.com",
+    )
+    corpus.add(m1)
+
+    m2 = _msg_with_account(
+        "m2",
+        from_addr="Aleks Larsen <aleks@example.com>",
+        subject="Board meeting Q1 update",
+        body="Aleks Larsen presented the board meeting Q1 update.",
+        source_account="dennison@withtally.com",
+    )
+    corpus.add(m2)
+
+    m3 = _msg_with_account(
+        "m3",
+        from_addr="Jana Bertram <jana@gmail.com>",
+        subject="Vitus Birthday in school",
+        body="Jana Bertram organised Vitus Birthday in school today.",
+        source_account="dennison@gmail.com",
+    )
+    corpus.add(m3)
+
+    m4 = _msg_with_account(
+        "m4",
+        from_addr="Dennison Bertram <dennison@withtally.com>",
+        subject="intro to my wife Jana",
+        body="Let me intro you to my wife Jana Bertram.",
+        source_account="dennison@withtally.com",
+    )
+    corpus.add(m4)
+
+    e_aleks = Entity(kind="person", key="aleks larsen", label="Aleks Larsen")
+    e_jana = Entity(kind="person", key="jana bertram", label="Jana Bertram")
+    entities = {e_aleks, e_jana}
+    seen_by_message = {
+        "m1": {e_aleks},
+        "m2": {e_aleks},
+        "m3": {e_jana},
+        "m4": {e_jana},
+    }
+    return corpus, entities, seen_by_message
+
+
+def _build_single_account_corpus() -> tuple[Corpus, set, dict]:
+    """Same people, but all messages from one account."""
+    corpus = Corpus()
+
+    m1 = _msg_with_account(
+        "m1",
+        from_addr="Aleks Larsen <aleks@example.com>",
+        subject="Term sheet for Series A",
+        body="Aleks Larsen sent the term sheet.",
+        source_account="dennison@withtally.com",
+    )
+    corpus.add(m1)
+
+    m2 = _msg_with_account(
+        "m2",
+        from_addr="Jana Bertram <jana@gmail.com>",
+        subject="Vitus Birthday",
+        body="Jana Bertram organised Vitus Birthday.",
+        source_account="dennison@withtally.com",
+    )
+    corpus.add(m2)
+
+    e_aleks = Entity(kind="person", key="aleks larsen", label="Aleks Larsen")
+    e_jana = Entity(kind="person", key="jana bertram", label="Jana Bertram")
+    entities = {e_aleks, e_jana}
+    seen_by_message = {
+        "m1": {e_aleks},
+        "m2": {e_jana},
+    }
+    return corpus, entities, seen_by_message
+
+
+def test_evidence_tagged_with_account_multi(tmp_path):
+    """Multi-account corpus: evidence excerpts show [account@email] prefix."""
+    corpus, entities, seen_by_message = _build_multi_account_corpus()
+    out = tmp_path / "profile.md"
+
+    write_family_profile(
+        out_path=out,
+        corpus=corpus,
+        entities=entities,
+        seen_by_message=seen_by_message,
+        seed="contacts",
+        stop_reason="test",
+        queries_run=["test"],
+        skip_judge=True,
+    )
+
+    content = out.read_text(encoding="utf-8")
+    # Aleks evidence should carry [dennison@withtally.com]
+    assert "[dennison@withtally.com]" in content, (
+        f"multi-account evidence should show account tag; got:\n{content}"
+    )
+    # Jana evidence should carry [dennison@gmail.com] for at least one excerpt
+    assert "[dennison@gmail.com]" in content, (
+        f"multi-account evidence should show second account tag; got:\n{content}"
+    )
+
+
+def test_evidence_no_tag_single_account(tmp_path):
+    """Single-account corpus: no [account] prefix on evidence lines."""
+    corpus, entities, seen_by_message = _build_single_account_corpus()
+    out = tmp_path / "profile.md"
+
+    write_family_profile(
+        out_path=out,
+        corpus=corpus,
+        entities=entities,
+        seen_by_message=seen_by_message,
+        seed="contacts",
+        stop_reason="test",
+        queries_run=["test"],
+        skip_judge=True,
+    )
+
+    content = out.read_text(encoding="utf-8")
+    # Must NOT contain any account tag prefix
+    assert "[dennison@withtally.com]" not in content, (
+        f"single-account evidence should NOT show account tag; got:\n{content}"
+    )
+    # Confirm the profile still has evidence
+    assert "Evidence:" in content
+
+
+def test_provenance_tagged_with_account(tmp_path):
+    """Multi-account: provenance footnotes include [account] tag."""
+    corpus, entities, seen_by_message = _build_multi_account_corpus()
+    out = tmp_path / "profile.md"
+
+    write_family_profile(
+        out_path=out,
+        corpus=corpus,
+        entities=entities,
+        seen_by_message=seen_by_message,
+        seed="contacts",
+        stop_reason="test",
+        queries_run=["test"],
+        skip_judge=True,
+    )
+
+    content = out.read_text(encoding="utf-8")
+    # Find the Provenance section
+    prov_idx = content.find("## Provenance")
+    assert prov_idx >= 0, "Profile must have a Provenance section"
+    provenance = content[prov_idx:]
+
+    # Each footnote should have an account tag
+    assert "[dennison@withtally.com] gmail:" in provenance, (
+        f"provenance footnotes should include account tag; got:\n{provenance}"
+    )
+
+
+def test_frontmatter_includes_accounts_list(tmp_path):
+    """Multi-account profile has 'accounts:' in YAML frontmatter."""
+    corpus, entities, seen_by_message = _build_multi_account_corpus()
+    out = tmp_path / "profile.md"
+
+    write_family_profile(
+        out_path=out,
+        corpus=corpus,
+        entities=entities,
+        seen_by_message=seen_by_message,
+        seed="contacts",
+        stop_reason="test",
+        queries_run=["test"],
+        skip_judge=True,
+    )
+
+    content = out.read_text(encoding="utf-8")
+    # Parse the YAML frontmatter
+    assert content.startswith("---\n")
+    end = content.index("\n---\n", 4)
+    fm_text = content[4:end]
+    fm = yaml.safe_load(fm_text)
+    assert "accounts" in fm, (
+        f"multi-account frontmatter must include 'accounts'; got keys: {list(fm.keys())}"
+    )
+    assert fm["accounts"] == ["dennison@gmail.com", "dennison@withtally.com"], (
+        f"accounts should be sorted list of distinct accounts; got: {fm['accounts']}"
+    )
+
+
+def test_frontmatter_no_accounts_single(tmp_path):
+    """Single-account profile should NOT have 'accounts:' in frontmatter."""
+    corpus, entities, seen_by_message = _build_single_account_corpus()
+    out = tmp_path / "profile.md"
+
+    write_family_profile(
+        out_path=out,
+        corpus=corpus,
+        entities=entities,
+        seen_by_message=seen_by_message,
+        seed="contacts",
+        stop_reason="test",
+        queries_run=["test"],
+        skip_judge=True,
+    )
+
+    content = out.read_text(encoding="utf-8")
+    assert content.startswith("---\n")
+    end = content.index("\n---\n", 4)
+    fm_text = content[4:end]
+    fm = yaml.safe_load(fm_text)
+    assert "accounts" not in fm, (
+        f"single-account frontmatter must NOT include 'accounts'; got keys: {list(fm.keys())}"
+    )

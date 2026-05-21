@@ -628,6 +628,22 @@ def _gather_rule_6_calendar_signal(
     return out
 
 
+def _corpus_source_accounts(corpus: Corpus) -> list[str]:
+    """Return the sorted list of distinct non-empty source_account values in the corpus.
+
+    Used to decide whether account-source tags should be rendered: if the list
+    has 2+ entries, we're in multi-account mode and each evidence line gets a
+    ``[user@domain]`` prefix.  When the list has 0 or 1 entries, the tags are
+    omitted — they'd be noise in single-account mode.
+    """
+    accounts: set[str] = set()
+    for msg in corpus.messages.values():
+        acct = getattr(msg, "source_account", "") or ""
+        if acct:
+            accounts.add(acct)
+    return sorted(accounts)
+
+
 def _gather_candidates(
     corpus: Corpus,
     entities: set[Entity],
@@ -930,6 +946,10 @@ def write_family_profile(
             filtered[canon] = pm
         members = filtered
 
+    # ---- Multi-account detection
+    all_accounts = _corpus_source_accounts(corpus)
+    is_multi_account = len(all_accounts) >= 2
+
     # ---- Frontmatter
     slug = _slugify_query(seed)
     seen_slugs: set[str] = set()
@@ -943,7 +963,7 @@ def write_family_profile(
     fingerprint = corpus.fingerprint()
     now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
 
-    frontmatter = {
+    frontmatter: dict = {
         "schema_version": 1,
         "kind": slug or "profile",
         "canonical_name": seed or "Query results",
@@ -962,6 +982,8 @@ def write_family_profile(
             "queries_run": queries_run,
         },
     }
+    if is_multi_account:
+        frontmatter["accounts"] = all_accounts
 
     # ---- Body
     body_parts: list[str] = []
@@ -1019,7 +1041,13 @@ def write_family_profile(
                         body_parts.append(f"- Domain: {domain_match.group(1)}")
             body_parts.append("- Evidence:")
             for mid, snippet in excerpts[:3]:
-                body_parts.append(f"  - \"{snippet}\" {cite(mid)}")
+                acct_tag = ""
+                if is_multi_account:
+                    msg = corpus.get(mid)
+                    acct = (getattr(msg, "source_account", "") or "") if msg else ""
+                    if acct:
+                        acct_tag = f"[{acct}] "
+                body_parts.append(f"  - {acct_tag}\"{snippet}\" {cite(mid)}")
             body_parts.append("")
 
     body_parts.append("## Open questions\n")
@@ -1032,7 +1060,12 @@ def write_family_profile(
     for mid in msg_order:
         msg = corpus.get(mid)
         subj = msg.subject if msg else "(unknown)"
-        body_parts.append(f'[^{msg_index[mid]}]: gmail:{mid} - "{subj}"')
+        acct_tag = ""
+        if is_multi_account and msg:
+            acct = getattr(msg, "source_account", "") or ""
+            if acct:
+                acct_tag = f"[{acct}] "
+        body_parts.append(f'[^{msg_index[mid]}]: {acct_tag}gmail:{mid} - "{subj}"')
 
     # ---- Write
     out_path.parent.mkdir(parents=True, exist_ok=True)

@@ -68,6 +68,8 @@ class MultiAccountSearcher:
         for email, searcher in self._searchers.items():
             try:
                 batch = searcher.search_and_fetch(query)
+                for msg in batch.hits:
+                    msg.source_account = email
                 all_hits.extend(batch.hits)
                 total_quota += batch.quota_units_used
                 total_retries += batch.retry_count
