@@ -44,7 +44,7 @@ def _load_dotenv_quietly() -> None:
         "Use 'deep-email setup' for first-time configuration."
     ),
 )
-@click.version_option("0.1.1", prog_name="deep-email")
+@click.version_option("0.2.0", prog_name="deep-email")
 @click.option(
     "-v",
     "--verbose",
